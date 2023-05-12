@@ -1,0 +1,12 @@
+numpy==1.24.3
+pandas==2.0.1
+matplotlib==3.7.1
+seaborn==0.12.2
+scikit-learn==1.2.2
+
+-f https://download.pytorch.org/whl/torch_stable.html     
+torch==2.0.0+cpu
+
+tqdm==2.2.3
+
+pytest==7.3.1
