@@ -1,4 +1,5 @@
 import torch
+from torch.utils.data import Dataset, DataLoader
 
 
 def get_distinct_characters(text: str) -> list[str]:
@@ -63,3 +64,26 @@ def get_batch(data, block_size, batch_size):
     x = torch.stack([data[i:i+block_size] for i in ix])
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
+
+
+class LanguageModelDataset(Dataset):
+    def __init__(self, text_file, block_size):
+        self.block_size = block_size
+        with open(text_file, 'r', encoding='utf-8') as f:
+            corpus_raw = f.read()
+        self.corpus_index = create_corpus_index(corpus_raw)
+
+    def __len__(self):
+        # last element must not collected, because it has no successor
+        return len(self.corpus_index)-1
+
+    def __getitem__(self, idx):
+        return self.corpus_index[idx:idx+self.block_size],self.corpus_index[idx+1:idx+self.block_size+1]
+
+if __name__ == "__main__":
+
+    dataset = LanguageModelDataset('data/text.txt', block_size=1)
+    dataloader = DataLoader(dataset, batch_size=1)
+
+    for x, y in dataloader:
+        print(f"{x}, {y}")
