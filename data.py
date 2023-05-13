@@ -38,10 +38,11 @@ def create_corpus_index(corpus_raw: str):
     wrt the vocabulary based on this string is created.
     """
     vocabulary = get_distinct_characters(corpus_raw)
-    token_to_index, _ = create_token_index_mappings(vocabulary)
+    token_to_index, index_to_token = create_token_index_mappings(vocabulary)
     encoder = create_encoder(token_to_index)
+    decoder = create_decoder(index_to_token)
     corpus_index = torch.tensor(encoder(corpus_raw), dtype=torch.long)
-    return corpus_index, vocabulary
+    return corpus_index, vocabulary, decoder, encoder
 
 def create_train_val_split(corpus_index: torch.Tensor, validation_ratio: float) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -67,11 +68,17 @@ def get_batch(data, block_size, batch_size):
 
 
 class LanguageModelDataset(Dataset):
-    def __init__(self, text_file, block_size):
+    def __init__(self, text_file, block_size, vocabulary=None, encoder=None, decoder=None):
         self.block_size = block_size
         with open(text_file, 'r', encoding='utf-8') as f:
             self.corpus_raw = f.read()
-        self.corpus_index, self.vocabulary = create_corpus_index(self.corpus_raw)
+        if vocabulary is None or decoder is None or encoder is None:
+            self.corpus_index, self.vocabulary, self.decoder, self.encoder = create_corpus_index(self.corpus_raw)
+        else:
+            self.vocabulary = vocabulary
+            self.encoder = encoder
+            self.decoder = decoder
+            self.corpus_index = torch.tensor(encoder(self.corpus_raw), dtype=torch.long)
 
     def __len__(self):
         # last elements must not be collected, because they have no successor

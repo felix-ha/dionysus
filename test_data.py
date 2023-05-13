@@ -40,13 +40,13 @@ class Test(unittest.TestCase):
 
     def test_create_corpus_index(self):
         corpus_raw = "Hello World.\n"
-        corpus_index_actual, _ = create_corpus_index(corpus_raw)
+        corpus_index_actual, _, _, _ = create_corpus_index(corpus_raw)
         corpus_index_expected = torch.tensor([3, 6, 7, 7, 8, 1, 4, 8, 9, 7, 5, 2, 0])
         self.assertTrue(torch.equal(corpus_index_actual, corpus_index_expected))
 
     def test_create_train_val_split(self):
         corpus_raw = "Hello World.\n"
-        corpus_index, _ = create_corpus_index(corpus_raw)
+        corpus_index, _, _, _ = create_corpus_index(corpus_raw)
         train_corpus_actual, validation_corpus_actual = create_train_val_split(corpus_index, 0.9)
         train_corpus_expected = torch.tensor([3, 6, 7, 7, 8, 1, 4, 8, 9, 7, 5])
         validation_corpus_expected = torch.tensor([2, 0])

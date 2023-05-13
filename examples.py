@@ -34,16 +34,24 @@ def feadforward_moon():
     print(results_pd)
 
 def bigram():
-    corpus_file = 'data/small/training.txt'
+    corpus_file_training = 'data/small/training.txt'
+    corpus_file_validation = 'data/small/validation.txt'
 
     generator = torch.Generator()
     generator.manual_seed(5)
 
-    dataset = LanguageModelDataset(corpus_file, block_size=5)
-    data_loader = DataLoader(dataset, batch_size=10, shuffle=True, generator=generator)
+    dataset_training = LanguageModelDataset(corpus_file_training, block_size=5)
+    data_loader_training = DataLoader(dataset_training, batch_size=10, shuffle=True, generator=generator)
+    dataset_validation= LanguageModelDataset(corpus_file_validation,
+                                             block_size=5,
+                                             vocabulary=dataset_training.vocabulary,
+                                             encoder=dataset_training.encoder,
+                                             decoder=dataset_training.decoder)
+    data_loader_validation = DataLoader(dataset_validation, batch_size=10, shuffle=True, generator=generator)
+
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = BigramLanguageModel(vocab_size=len(dataset.vocabulary))
+    model = BigramLanguageModel(vocab_size=len(dataset_training.vocabulary))
     m = model.to(device)
 
     loss_func = cross_entropy_language_model
@@ -51,8 +59,18 @@ def bigram():
     lr = 0.001
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
-    result = train(model, loss_func, optimizer, training_loader=data_loader, validation_loader=None, epochs=epochs, device=device)
+    result = train(model,
+                    loss_func, 
+                    optimizer,
+                    training_loader=data_loader_training,
+                    validation_loader=data_loader_validation,
+                    epochs=epochs,
+                    device=device)    
     print(result)
+
+    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+    created_text = dataset_training.decoder(m.generate(context, max_new_tokens=5)[0].tolist())
+    print(created_text)
 
 if __name__ == "__main__": 
     #feadforward_moon()
