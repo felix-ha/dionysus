@@ -32,7 +32,7 @@ def create_decoder(index_to_token):
     """
     return lambda idxs: ''.join([index_to_token[index] for index in idxs])
 
-def create_corpus_index(corpus_raw: str) -> torch.Tensor:
+def create_corpus_index(corpus_raw: str):
     """
     Given a string (corpus_raw), one dimensional tensor with the indexes
     wrt the vocabulary based on this string is created.
@@ -41,7 +41,7 @@ def create_corpus_index(corpus_raw: str) -> torch.Tensor:
     token_to_index, _ = create_token_index_mappings(vocabulary)
     encoder = create_encoder(token_to_index)
     corpus_index = torch.tensor(encoder(corpus_raw), dtype=torch.long)
-    return corpus_index
+    return corpus_index, vocabulary
 
 def create_train_val_split(corpus_index: torch.Tensor, validation_ratio: float) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -71,7 +71,7 @@ class LanguageModelDataset(Dataset):
         self.block_size = block_size
         with open(text_file, 'r', encoding='utf-8') as f:
             self.corpus_raw = f.read()
-        self.corpus_index = create_corpus_index(self.corpus_raw)
+        self.corpus_index, self.vocabulary = create_corpus_index(self.corpus_raw)
 
     def __len__(self):
         # last elements must not be collected, because they have no successor

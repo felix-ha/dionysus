@@ -8,19 +8,19 @@ from torch.nn import functional as F
 
 def train_model(device):
     # hyperparameters
-    batch_size = 3 # how many independent sequences will we process in parallel?
-    block_size = 3 # what is the maximum context length for predictions?
+    batch_size = 2 # how many independent sequences will we process in parallel?
+    block_size = 2 # what is the maximum context length for predictions?
     eval_interval = 300
     learning_rate = 1e-2
     eval_iters = 200
 
-    max_iters = 5
+    max_iters = 10
     # ------------
 
     # torch.manual_seed(1337)
 
     # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-    with open('data/text.txt', 'r', encoding='utf-8') as f:
+    with open('data/small/training.txt', 'r', encoding='utf-8') as f:
         text = f.read()
 
     # here are all the unique characters that occur in this text

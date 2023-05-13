@@ -5,11 +5,14 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 
 def train(model, loss_func, optimizer, training_loader, validation_loader, epochs, device):
-    to_track = ["epoch_time", "training_loss", "validation_loss"]
+    to_track = ["epoch_time", "training_loss"]
+    if validation_loader is not None:
+        to_track.append("validation_loss")
     results = {}
     for item in to_track:
         results[item] = []
@@ -26,8 +29,7 @@ def train(model, loss_func, optimizer, training_loader, validation_loader, epoch
     
         results["epoch_time"].append(epoch_time)
 
-    return pd.DataFrame.from_dict(results)
-   
+    return pd.DataFrame.from_dict(results)  
 
 def run_epoch(model, loss_func, optimizer, data_loader, device, results, prefix=""):
     running_loss = []
@@ -49,29 +51,13 @@ def run_epoch(model, loss_func, optimizer, data_loader, device, results, prefix=
     results[prefix + "_loss"].append(np.mean(running_loss))
     return end-start
 
-
-if __name__ == "__main__": 
-    from sklearn.datasets import make_moons
-
-    X_train, y_train = make_moons(n_samples=100, noise=0.1)
-    X_validation, y_validation = make_moons(n_samples=100, noise=0.1)
-    train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
-                                torch.tensor(y_train, dtype=torch.long))
-    validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
-                                        torch.tensor(y_validation, dtype=torch.long))
-    training_loader = DataLoader(train_dataset, shuffle=True)
-    validation_loader = DataLoader(validation_dataset)
-
-    in_features = 2
-    out_features = 2
-    model = nn.Linear(in_features, out_features)
-    loss_func = nn.CrossEntropyLoss()
-
-    device = torch.device("cpu")
-    epochs = 10
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    results_pd = train(model, loss_func, optimizer, training_loader, validation_loader, epochs, device)
-
-    print(results_pd)
+def cross_entropy_language_model(logits, targets):
+    """
+    Removes the time dimension for logits and targets and computes the cross entropy loss
+    For the F.cross_entropy function, the inputs are predicted unnormalized logits and output are ground truth class indices or class probabilities
+    """
+    B, T, C = logits.shape
+    logits = logits.view(B*T, C)
+    targets = targets.view(B*T)
+    loss = F.cross_entropy(logits, targets)
+    return loss
