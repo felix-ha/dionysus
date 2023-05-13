@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+import os
 from data import *
 
 
@@ -53,14 +55,55 @@ class Test(unittest.TestCase):
 
     def test_get_batch(self):
         torch.manual_seed(0)
-        data = torch.tensor([3, 6, 7, 7, 8, 1, 4, 8, 9, 7, 5])
+        data = torch.tensor([3, 6, 7, 7, 8, 1, 4, 8, 9, 7, 5, 2, 0])
         x_actual, y_actual = get_batch(data, block_size=2, batch_size=3)
-        x_expected = torch.tensor( [[9, 7],
-                                    [3, 6],
+        x_expected = torch.tensor( [[5, 2],
+                                    [8, 9],
+                                    [6, 7]])
+        y_expected = torch.tensor( [[2, 0],
+                                    [9, 7],
                                     [7, 7]])
-        y_expected = torch.tensor( [[7, 5],
-                                    [6, 7],
-                                    [7, 8]])
         self.assertTrue(torch.equal(x_actual, x_expected))
         self.assertTrue(torch.equal(y_actual, y_expected))
+
+    def test_language_model_dataset(self):
+        corpus_raw = "Hello World.\n"
+        generator = torch.Generator()
+        generator.manual_seed(0)
+        with tempfile.TemporaryDirectory() as tempdir:
+            tmpfilepath = os.path.join(tempdir, 'text.txt')
+            with open(tmpfilepath, 'w') as text_file:
+                text_file.write(corpus_raw)
+            dataset = LanguageModelDataset(tmpfilepath, block_size=2)
+            dataloader = DataLoader(dataset, batch_size=3, shuffle=True, generator=generator)
+
+            # Expected batches from get_batch function
+            x_expected_get_batch = torch.tensor( [[5, 2],
+                                    [8, 9],
+                                    [6, 7]])
+            y_expected_get_batch = torch.tensor( [[2, 0],
+                                     [9, 7],
+                                      [7, 7]])
+            
+            corpus_index_expected = torch.tensor([3, 6, 7, 7, 8, 1, 4, 8, 9, 7, 5, 2, 0])
+            self.assertTrue(torch.equal(dataset.corpus_index, corpus_index_expected))
+
+            x_expected = torch.tensor( [[6, 7],
+                                       [3, 6],
+                                       [7, 5]])
+            y_expected = torch.tensor( [[7, 7],
+                                       [6, 7],
+                                       [5, 2]])
+
+            # Test for first batch that the shape is equal to the shape of the batch
+            # from the get_batch function. Values are not equal because of the shuffling
+            for x_actual, y_actual in dataloader:
+                self.assertTrue(x_actual.shape == x_expected_get_batch.shape)
+                self.assertTrue(y_actual.shape == y_expected_get_batch.shape)
+                self.assertTrue(torch.equal(x_actual, x_expected))
+                self.assertTrue(torch.equal(y_actual, y_expected))
+                break
+
+if __name__ == '__main__':
+    unittest.main() 
         

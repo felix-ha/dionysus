@@ -70,19 +70,19 @@ class LanguageModelDataset(Dataset):
     def __init__(self, text_file, block_size):
         self.block_size = block_size
         with open(text_file, 'r', encoding='utf-8') as f:
-            corpus_raw = f.read()
-        self.corpus_index = create_corpus_index(corpus_raw)
+            self.corpus_raw = f.read()
+        self.corpus_index = create_corpus_index(self.corpus_raw)
 
     def __len__(self):
-        # last element must not collected, because it has no successor
-        return len(self.corpus_index)-1
+        # last elements must not be collected, because they have no successor
+        return len(self.corpus_index)-self.block_size
 
     def __getitem__(self, idx):
         return self.corpus_index[idx:idx+self.block_size],self.corpus_index[idx+1:idx+self.block_size+1]
 
 if __name__ == "__main__":
 
-    dataset = LanguageModelDataset('data/text.txt', block_size=1)
+    dataset = LanguageModelDataset('data/text.txt', block_size=10)
     dataloader = DataLoader(dataset, batch_size=1)
 
     for x, y in dataloader:
