@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from training import train, cross_entropy_language_model
 from data import LanguageModelDataset
-from models import BigramLanguageModel, BigramLanguageModelV2
+from models import BigramLanguageModel, BigramLanguageModelV2, generate
 
 
 def feadforward_moon():
@@ -69,7 +69,7 @@ def bigram():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(m.generate(context, max_new_tokens=5)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
     print(created_text)
 
 def bigramV2():
@@ -108,9 +108,10 @@ def bigramV2():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(m.generate(context, max_new_tokens=5)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
     print(created_text)
 
 if __name__ == "__main__": 
     #feadforward_moon()
-    bigram()
+    #bigram()
+    bigramV2()

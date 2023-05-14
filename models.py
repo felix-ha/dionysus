@@ -12,14 +12,6 @@ class BigramLanguageModel(nn.Module):
         logits = self.token_embedding_table(idx) 
         return logits
 
-    def generate(self, idx, max_new_tokens):
-        for _ in range(max_new_tokens):
-            logits = self(idx)
-            logits = logits[:, -1, :]
-            probs = F.softmax(logits, dim=-1) 
-            idx_next = torch.multinomial(probs, num_samples=1) 
-            idx = torch.cat((idx, idx_next), dim=1) 
-        return idx
     
 class BigramLanguageModelV2(nn.Module):
     def __init__(self, vocab_size, n_embd):
@@ -31,12 +23,13 @@ class BigramLanguageModelV2(nn.Module):
         tok_emb = self.token_embedding_table(idx) 
         logits = self.lm_head(tok_emb)
         return logits
-
-    def generate(self, idx, max_new_tokens):
-        for _ in range(max_new_tokens):
-            logits = self(idx)
-            logits = logits[:, -1, :]
-            probs = F.softmax(logits, dim=-1) 
-            idx_next = torch.multinomial(probs, num_samples=1) 
-            idx = torch.cat((idx, idx_next), dim=1) 
-        return idx
+   
+    
+def generate(model, idx, max_new_tokens):
+    for _ in range(max_new_tokens):
+        logits = model(idx)
+        logits = logits[:, -1, :]
+        probs = F.softmax(logits, dim=-1) 
+        idx_next = torch.multinomial(probs, num_samples=1) 
+        idx = torch.cat((idx, idx_next), dim=1) 
+    return idx
