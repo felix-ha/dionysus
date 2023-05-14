@@ -4,12 +4,7 @@ import os
 from data import *
 
 
-class Test(unittest.TestCase):   
-    @classmethod
-    def setUpClass(self):
-      #this method is only run once for the entire class rather than being run for each test which is done for setUp()
-      self.constant = 3
-    
+class Test(unittest.TestCase):      
     def test_get_distinct_characters(self):
         corpus_raw = "Hello World.\n"
         vocabulary_actual = get_distinct_characters(corpus_raw)
