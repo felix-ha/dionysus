@@ -1,5 +1,5 @@
 import unittest
-from examples import feadforward_moon, bigram, bigramV2, bigramV3
+from examples import *
 
 
 class Test(unittest.TestCase):
@@ -11,6 +11,8 @@ class Test(unittest.TestCase):
         bigramV2()
     def test_bigramV3(self):
         bigramV3()
+    def test_bigramV4(self):
+        bigramV4()
         
 
 if __name__ == '__main__':

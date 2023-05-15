@@ -42,6 +42,28 @@ class BigramLanguageModelV3(nn.Module):
         return logits
     
 
+class BigramLanguageModelV4(nn.Module):
+    """
+    Model with single self-attention head
+    """
+    def __init__(self, vocab_size, n_embd, head_size, block_size, device):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.sa_head = Head(head_size, n_embd, block_size)
+        self.lm_head = nn.Linear(head_size, vocab_size)
+        self.device = device
+
+    def forward(self, idx):
+        B, T = idx.shape
+        tok_emb = self.token_embedding_table(idx) 
+        positinal_emb = self.position_embedding_table(torch.arange(T, device=self.device))
+        x = tok_emb + positinal_emb
+        x = self.sa_head(x)
+        logits = self.lm_head(x)
+        return logits
+
+
 class Head(nn.Module):
     """ one head of self-attention """
 
