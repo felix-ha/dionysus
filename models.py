@@ -86,9 +86,13 @@ class Head(nn.Module):
         return out
    
     
-def generate(model, idx, max_new_tokens):
+def generate(model, idx, max_new_tokens, block_size=None):
     for _ in range(max_new_tokens):
-        logits = model(idx)
+        if block_size is None:
+            idx_cond = idx
+        else: 
+            idx_cond = idx[:, -block_size:]
+        logits = model(idx_cond)
         logits = logits[:, -1, :]
         probs = F.softmax(logits, dim=-1) 
         idx_next = torch.multinomial(probs, num_samples=1) 

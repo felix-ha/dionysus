@@ -69,7 +69,7 @@ def bigram():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=10)[0].tolist())
     print(created_text)
 
 def bigramV2():
@@ -108,7 +108,7 @@ def bigramV2():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=10)[0].tolist())
     print(created_text)
 
 def bigramV3():
@@ -149,7 +149,7 @@ def bigramV3():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
     print(created_text)
 
 def bigramV4():
@@ -191,7 +191,7 @@ def bigramV4():
     print(result)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size)[0].tolist())
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
     print(created_text)
 
 if __name__ == "__main__": 

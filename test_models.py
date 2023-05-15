@@ -12,7 +12,7 @@ class TestBigramLanguageModel(unittest.TestCase):
         models = [BigramLanguageModel(vocab_size=self.vocab_size), 
                   BigramLanguageModelV2(vocab_size=self.vocab_size, n_embd=5),
                   BigramLanguageModelV3(vocab_size=self.vocab_size, n_embd=5, block_size=2, device='cpu'),
-                  BigramLanguageModelV4(vocab_size=self.vocab_size, n_embd=5, block_size=3, block_size=2, device='cpu')]
+                  BigramLanguageModelV4(vocab_size=self.vocab_size, n_embd=5, head_size=3, block_size=5, device='cpu')]
 
         for model in models:
             logits = model(x)
@@ -29,7 +29,7 @@ class TestBigramLanguageModel(unittest.TestCase):
         models = [BigramLanguageModel(vocab_size=self.vocab_size), 
                   BigramLanguageModelV2(vocab_size=self.vocab_size, n_embd=5),
                   BigramLanguageModelV3(vocab_size=self.vocab_size, n_embd=5, block_size=5, device='cpu'),
-                  BigramLanguageModelV4(vocab_size=self.vocab_size, n_embd=5, block_size=3, block_size=2, device='cpu')]
+                  BigramLanguageModelV4(vocab_size=self.vocab_size, n_embd=5, head_size=3, block_size=5, device='cpu')]
 
         for model in models:
             logits = model(x)
