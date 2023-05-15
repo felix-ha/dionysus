@@ -36,6 +36,18 @@ class TestBigramLanguageModel(unittest.TestCase):
             self.assertTrue(T == 5) # T_x = 5
             self.assertTrue(C == self.vocab_size)
 
+    def test_self_attention_head(self):
+        B = 1
+        n_embd = 26
+        block_size = 5 # This is T
+        head_size = 3
+        x = torch.rand((B, block_size, n_embd))
+              
+        head = Head(head_size, n_embd, block_size)
+        out = head(x)
+
+        self.assertTrue(out.shape == (B, block_size, head_size))
+
 
 if __name__ == '__main__':
     unittest.main() 

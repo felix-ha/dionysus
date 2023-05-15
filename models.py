@@ -24,6 +24,7 @@ class BigramLanguageModelV2(nn.Module):
         logits = self.lm_head(tok_emb)
         return logits
     
+
 class BigramLanguageModelV3(nn.Module):
     def __init__(self, vocab_size, n_embd, block_size, device):
         super().__init__()
@@ -39,6 +40,28 @@ class BigramLanguageModelV3(nn.Module):
         x = tok_emb + positinal_emb
         logits = self.lm_head(x)
         return logits
+    
+
+class Head(nn.Module):
+    """ one head of self-attention """
+
+    def __init__(self, head_size, n_embd, block_size):
+        super().__init__()
+        self.key = nn.Linear(n_embd, head_size, bias=False)
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+
+    def forward(self, x):
+        B,T,C = x.shape
+        k = self.key(x)   
+        q = self.query(x) 
+        wei = q @ k.transpose(-2,-1) * C**-0.5 
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = F.softmax(wei, dim=-1) 
+        v = self.value(x) 
+        out = wei @ v 
+        return out
    
     
 def generate(model, idx, max_new_tokens):
