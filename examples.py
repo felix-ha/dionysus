@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from training import train, cross_entropy_language_model
 from data import LanguageModelDataset
-from models import BigramLanguageModel, BigramLanguageModelV2, generate
+from models import *
 
 
 def feadforward_moon():
@@ -111,7 +111,48 @@ def bigramV2():
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
     print(created_text)
 
+def bigramV3():
+    corpus_file_training = 'data/small/training.txt'
+    corpus_file_validation = 'data/small/validation.txt'
+
+    generator = torch.Generator()
+    generator.manual_seed(5)
+
+    n_embd = 5
+    block_size = 5
+    dataset_training = LanguageModelDataset(corpus_file_training, block_size=5)
+    data_loader_training = DataLoader(dataset_training, batch_size=10, shuffle=True, generator=generator)
+    dataset_validation= LanguageModelDataset(corpus_file_validation,
+                                             block_size=block_size,
+                                             vocabulary=dataset_training.vocabulary,
+                                             encoder=dataset_training.encoder,
+                                             decoder=dataset_training.decoder)
+    data_loader_validation = DataLoader(dataset_validation, batch_size=10, shuffle=True, generator=generator)
+
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model = BigramLanguageModelV3(vocab_size=len(dataset_training.vocabulary), n_embd=n_embd, block_size=block_size, device=device)
+    m = model.to(device)
+
+    loss_func = cross_entropy_language_model
+    epochs = 2
+    lr = 0.001
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+
+    result = train(model,
+                    loss_func, 
+                    optimizer,
+                    training_loader=data_loader_training,
+                    validation_loader=data_loader_validation,
+                    epochs=epochs,
+                    device=device)    
+    print(result)
+
+    context = torch.zeros((1, 1), dtype=torch.long, device=device)
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=5)[0].tolist())
+    print(created_text)
+
 if __name__ == "__main__": 
     #feadforward_moon()
     #bigram()
-    bigramV2()
+    bigramV3()

@@ -5,12 +5,15 @@ class TestBigramLanguageModel(unittest.TestCase):
     @classmethod
     def setUpClass(self):
       self.vocab_size=26
-      self.models = [BigramLanguageModel(vocab_size=self.vocab_size), 
-                     BigramLanguageModelV2(vocab_size=self.vocab_size, n_embd=5)]
-
+    
     def test_single_batch_loop(self):
-        x = torch.tensor([[1,2]]) 
-        for model in self.models:
+        x = torch.tensor([[1,2]])
+
+        models = [BigramLanguageModel(vocab_size=self.vocab_size), 
+                  BigramLanguageModelV2(vocab_size=self.vocab_size, n_embd=5),
+                  BigramLanguageModelV3(vocab_size=self.vocab_size, n_embd=5, block_size=2, device='cpu')]
+
+        for model in models:
             logits = model(x)
             B, T, C = logits.shape
             self.assertTrue(B == 1) # B_x = 1
@@ -21,7 +24,12 @@ class TestBigramLanguageModel(unittest.TestCase):
         x = torch.tensor([[1, 2, 3, 4, 5],
                           [4, 23, 1, 0, 25],
                           [22, 2, 4, 12, 19]]) 
-        for model in self.models:
+        
+        models = [BigramLanguageModel(vocab_size=self.vocab_size), 
+                  BigramLanguageModelV2(vocab_size=self.vocab_size, n_embd=5),
+                  BigramLanguageModelV3(vocab_size=self.vocab_size, n_embd=5, block_size=5, device='cpu')]
+
+        for model in models:
             logits = model(x)
             B, T, C = logits.shape
             self.assertTrue(B == 3) # B_x = 1
