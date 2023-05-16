@@ -13,6 +13,10 @@ class Test(unittest.TestCase):
         bigramV3()
     def test_bigramV4(self):
         bigramV4()
+    def test_bigramV5(self):
+        bigramV5()
+    def test_bigramV6(self):
+        bigramV6()
         
 
 if __name__ == '__main__':

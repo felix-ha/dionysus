@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+# v6, tranformer block
+
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
@@ -64,6 +66,65 @@ class BigramLanguageModelV4(nn.Module):
         return logits
 
 
+class BigramLanguageModelV5(nn.Module):
+    """
+    Model with single multi head self-attention head
+    """
+    def __init__(self, vocab_size, n_embd, num_heads, head_size, block_size, device):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.sa_heads = MultiHeadAttention(num_heads, head_size, n_embd, block_size)
+        self.lm_head = nn.Linear(head_size*num_heads, vocab_size)
+        self.device = device
+
+    def forward(self, idx):
+        B, T = idx.shape
+        tok_emb = self.token_embedding_table(idx) 
+        positinal_emb = self.position_embedding_table(torch.arange(T, device=self.device))
+        x = tok_emb + positinal_emb
+        x = self.sa_heads(x)
+        logits = self.lm_head(x)
+        return logits
+
+class BigramLanguageModelV6(nn.Module):
+
+    # build tranformer here 
+
+    def __init__(self, vocab_size, n_embd, num_heads, block_size, device):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.blocks = nn.Sequential(
+            Block(n_embd, n_head=num_heads, block_size=block_size),
+            Block(n_embd, n_head=num_heads,block_size=block_size),
+            Block(n_embd, n_head=num_heads, block_size=block_size),
+        )
+        self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.device = device
+
+    def forward(self, idx):
+        B, T = idx.shape
+        tok_emb = self.token_embedding_table(idx) 
+        positinal_emb = self.position_embedding_table(torch.arange(T, device=self.device))
+        x = tok_emb + positinal_emb
+        x = self.blocks(x)
+        logits = self.lm_head(x)
+        return logits
+
+class FeedFoward(nn.Module):
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+    
+    def forward(self, x):
+        return self.net(x)
+
+
 class Head(nn.Module):
     """ one head of self-attention """
 
@@ -84,6 +145,36 @@ class Head(nn.Module):
         v = self.value(x) 
         out = wei @ v 
         return out
+    
+
+class MultiHeadAttention(nn.Module):
+    """ multiple heads of self-attention in parallel """
+
+    def __init__(self, num_heads, head_size, n_embd, block_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size, n_embd, block_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(head_size * num_heads, head_size * num_heads) # dim_in == dim_out?
+        assert head_size * num_heads == n_embd
+
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.proj(out)
+        return out
+    
+class Block(nn.Module):
+    """ Transformer block: communication followed by computation """
+
+    def __init__(self, n_embd, n_head, block_size):
+        # n_embd: embedding dimension, n_head: the number of heads we'd like
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size, n_embd, block_size)
+        self.ffwd = FeedFoward(n_embd)
+
+    def forward(self, x):
+        x = x + self.sa(x)
+        x = x + self.ffwd(x)
+        return x
    
     
 def generate(model, idx, max_new_tokens, block_size=None):

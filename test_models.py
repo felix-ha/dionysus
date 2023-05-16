@@ -69,6 +69,19 @@ class TestBigramLanguageModel(unittest.TestCase):
 
         self.assertTrue(out.shape == (B, block_size, head_size))
 
+    def test_self_attention_multi_head(self):
+        B = 1
+        n_embd = 8
+        block_size = 5 # This is T
+        head_size = 2
+        x = torch.rand((B, block_size, n_embd))
+        
+        num_heads = 4
+        head = MultiHeadAttention(num_heads, head_size, n_embd, block_size)
+        out = head(x)
+
+        self.assertTrue(out.shape == (B, block_size, num_heads * head_size))
+
     def test_embedding_self_attention(self):
         x = torch.tensor([[1, 2, 3, 4, 5],
                         [4, 23, 1, 0, 25],
