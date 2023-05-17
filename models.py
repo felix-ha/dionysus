@@ -91,16 +91,12 @@ class BigramLanguageModelV6(nn.Module):
 
     # build tranformer here 
 
-    def __init__(self, vocab_size, n_embd, num_heads, block_size, dropout, device):
+    def __init__(self, vocab_size, n_embd, num_heads, block_size, n_layer, dropout, device):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(
-            Block(n_embd, n_head=num_heads, block_size=block_size, dropout=dropout),
-            Block(n_embd, n_head=num_heads,block_size=block_size, dropout=dropout),
-            Block(n_embd, n_head=num_heads, block_size=block_size, dropout=dropout),
-            nn.LayerNorm(n_embd)
-        )
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head=num_heads, block_size=block_size, dropout=dropout) for _ in range(n_layer)])
+        self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.device = device
 
