@@ -91,14 +91,15 @@ class BigramLanguageModelV6(nn.Module):
 
     # build tranformer here 
 
-    def __init__(self, vocab_size, n_embd, num_heads, block_size, device):
+    def __init__(self, vocab_size, n_embd, num_heads, block_size, dropout, device):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(
-            Block(n_embd, n_head=num_heads, block_size=block_size),
-            Block(n_embd, n_head=num_heads,block_size=block_size),
-            Block(n_embd, n_head=num_heads, block_size=block_size),
+            Block(n_embd, n_head=num_heads, block_size=block_size, dropout=dropout),
+            Block(n_embd, n_head=num_heads,block_size=block_size, dropout=dropout),
+            Block(n_embd, n_head=num_heads, block_size=block_size, dropout=dropout),
+            nn.LayerNorm(n_embd)
         )
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.device = device
@@ -128,12 +129,13 @@ class FeedFoward(nn.Module):
 class Head(nn.Module):
     """ one head of self-attention """
 
-    def __init__(self, head_size, n_embd, block_size):
+    def __init__(self, head_size, n_embd, block_size, dropout=0.0):
         super().__init__()
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         B,T,C = x.shape
@@ -142,6 +144,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2,-1) * C**-0.5 
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1) 
+        wei = self.dropout(wei)
         v = self.value(x) 
         out = wei @ v 
         return out
@@ -150,9 +153,9 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
-    def __init__(self, num_heads, head_size, n_embd, block_size):
+    def __init__(self, num_heads, head_size, n_embd, block_size, dropout=0.0):
         super().__init__()
-        self.heads = nn.ModuleList([Head(head_size, n_embd, block_size) for _ in range(num_heads)])
+        self.heads = nn.ModuleList([Head(head_size, n_embd, block_size, dropout) for _ in range(num_heads)])
         self.proj = nn.Linear(head_size * num_heads, head_size * num_heads) # dim_in == dim_out?
         assert head_size * num_heads == n_embd
 
@@ -164,20 +167,24 @@ class MultiHeadAttention(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_embd, n_head, block_size):
+    def __init__(self, n_embd, n_head, block_size, dropout=0.0):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, head_size, n_embd, block_size)
+        self.sa = MultiHeadAttention(n_head, head_size, n_embd, block_size, dropout)
         self.ffwd = FeedFoward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
 
     def forward(self, x):
-        x = x + self.sa(x)
-        x = x + self.ffwd(x)
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
         return x
    
     
 def generate(model, idx, max_new_tokens, block_size=None):
+    model.eval()
     for _ in range(max_new_tokens):
         if block_size is None:
             idx_cond = idx
