@@ -1,5 +1,8 @@
 import unittest
 from models import *
+import torch
+import torch.nn as nn
+
 
 class TestBigramLanguageModel(unittest.TestCase):
     @classmethod
@@ -106,6 +109,82 @@ class TestBigramLanguageModel(unittest.TestCase):
         self.assertTrue(emb.shape == (B, T, n_embd))
         self.assertTrue(out.shape == (B, T, head_size))
 
+    def test_nn_linear_no_batch(self):
+        with torch.no_grad():
+            layer = nn.Linear(2, 3, bias=False)
+            x = torch.tensor([1, 2], dtype=torch.float32)
+
+            layer.weight[0,0] = 1
+            layer.weight[1,1] = 1
+            layer.weight[0,1] = 0
+            layer.weight[1,0] = 0
+            layer.weight[2,0] = 0
+            layer.weight[2,1] = 0
+
+            y = layer(x)
+            self.assertTrue(torch.equal(y, torch.tensor([1.0, 2.0, 0.0])))
+
+    def test_nn_linear_empty_batch(self):
+        with torch.no_grad():
+            layer = nn.Linear(2, 3, bias=False)
+            x = torch.tensor([[1, 2]], dtype=torch.float32)
+
+            layer.weight[0,0] = 1
+            layer.weight[1,1] = 1
+            layer.weight[0,1] = 0
+            layer.weight[1,0] = 0
+            layer.weight[2,0] = 0
+            layer.weight[2,1] = 0
+
+            y = layer(x)
+            self.assertTrue(torch.equal(y, torch.tensor([[1.0, 2.0, 0.0]])))
+    
+    
+    def test_nn_linear_batch(self):
+        with torch.no_grad():
+            layer = nn.Linear(2, 3, bias=False)
+            x = torch.tensor([[1, 2],
+                              [3, 4],
+                              [5, 6]], dtype=torch.float32)
+
+            layer.weight[0,0] = 1
+            layer.weight[1,1] = 1
+            layer.weight[0,1] = 0
+            layer.weight[1,0] = 0
+            layer.weight[2,0] = 0
+            layer.weight[2,1] = 0
+
+            y = layer(x)
+            self.assertTrue(torch.equal(y, torch.tensor([[1.0, 2.0, 0.0],
+                                                         [3.0, 4.0, 0.0],
+                                                         [5.0, 6.0, 0.0]])))
+
+    def test_nn_linear_meta_batch(self):
+        with torch.no_grad():
+            layer = nn.Linear(2, 3, bias=False)
+            x = torch.tensor([[[1, 2],
+                              [3, 4],
+                              [5, 6]], 
+                              
+                             [[1,8],
+                              [3, 9],
+                              [5, 7]]], dtype=torch.float32)
+
+            layer.weight[0,0] = 1
+            layer.weight[1,1] = 1
+            layer.weight[0,1] = 0
+            layer.weight[1,0] = 0
+            layer.weight[2,0] = 0
+            layer.weight[2,1] = 0
+
+            y = layer(x)
+            self.assertTrue(torch.equal(y, torch.tensor([[[1.0, 2.0, 0.0],
+                                                         [3.0, 4.0, 0.0],
+                                                         [5.0, 6.0, 0.0]],
+                                                         
+                                                         [[1.0, 8.0, 0.0],
+                                                         [3.0, 9.0, 0.0],
+                                                         [5.0, 7.0, 0.0]]])))
 
 if __name__ == '__main__':
     unittest.main() 
