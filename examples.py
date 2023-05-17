@@ -262,6 +262,8 @@ def bigramV6():
     model = BigramLanguageModelV6(vocab_size=len(dataset_training.vocabulary), n_embd=n_embd, num_heads=num_heads, block_size=block_size, dropout=dropout, device=device)
     m = model.to(device)
 
+    print(sum(p.numel() for p in m.parameters()), 'parameters')
+
     loss_func = cross_entropy_language_model
     epochs = 2
     lr = 0.001
