@@ -114,12 +114,13 @@ class BigramLanguageModelV6(nn.Module):
         return logits
 
 class FeedFoward(nn.Module):
-    def __init__(self, n_embd):
+    def __init__(self, n_embd, dropout=0.0):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
     
     def forward(self, x):
@@ -156,12 +157,13 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size, n_embd, block_size, dropout=0.0):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size, n_embd, block_size, dropout) for _ in range(num_heads)])
-        self.proj = nn.Linear(head_size * num_heads, head_size * num_heads) # dim_in == dim_out?
-        assert head_size * num_heads == n_embd
+        self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.proj(out)
+        out = self.dropout(out)
         return out
     
 class Block(nn.Module):
@@ -172,7 +174,7 @@ class Block(nn.Module):
         super().__init__()
         head_size = n_embd // n_head
         self.sa = MultiHeadAttention(n_head, head_size, n_embd, block_size, dropout)
-        self.ffwd = FeedFoward(n_embd)
+        self.ffwd = FeedFoward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
