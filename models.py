@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-# v6, tranformer block
-
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
@@ -87,10 +85,7 @@ class BigramLanguageModelV5(nn.Module):
         logits = self.lm_head(x)
         return logits
 
-class BigramLanguageModelV6(nn.Module):
-
-    # build tranformer here 
-
+class simpleGPT(nn.Module):
     def __init__(self, vocab_size, n_embd, num_heads, block_size, n_layer, dropout, device):
         super().__init__()
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)

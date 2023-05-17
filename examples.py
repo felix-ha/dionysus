@@ -73,7 +73,7 @@ def bigram():
     print(created_text)
 
 
-def bigramV6():
+def run_simpleGPT():
     corpus_file_training = 'data/small/training.txt'
     corpus_file_validation = 'data/small/validation.txt'
 
@@ -96,7 +96,7 @@ def bigramV6():
 
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = BigramLanguageModelV6(vocab_size=len(dataset_training.vocabulary),
+    model = simpleGPT(vocab_size=len(dataset_training.vocabulary),
                                    n_embd=n_embd,
                                    num_heads=num_heads,
                                    block_size=block_size,
@@ -126,6 +126,4 @@ def bigramV6():
     print(created_text)
 
 if __name__ == "__main__": 
-    #feadforward_moon()
-    #bigram()
-    bigramV6()
+    run_simpleGPT()
