@@ -8,6 +8,51 @@ class TestBigramLanguageModel(unittest.TestCase):
     @classmethod
     def setUpClass(self):
       self.vocab_size=26
+
+    def test_single_token_input_bigram(self):
+        x = torch.tensor([1])
+
+        model = BigramLanguageModel(vocab_size=self.vocab_size)
+                  
+        logits = model(x)
+        self.assertTrue(logits.shape == (1, self.vocab_size))
+
+    def test_single_token_input_bigram2(self):
+        x = torch.tensor([[1]])
+
+        model = BigramLanguageModel(vocab_size=self.vocab_size)
+                  
+        logits = model(x)
+        self.assertTrue(logits.shape == (1, 1, self.vocab_size))
+
+    def test_single_token_input_gpt1(self):
+        x = torch.tensor([1])
+
+        model =  simpleGPT(vocab_size=self.vocab_size,
+                                   n_embd=5,
+                                   num_heads=1,
+                                   block_size=500,
+                                   n_layer=1, 
+                                   dropout=0.2, 
+                                   device='cpu')
+        
+        with self.assertRaises(ValueError):
+            logits = model(x)
+
+    def test_single_token_input_gpt(self):
+        x = torch.tensor([[1]])
+
+        model =  simpleGPT(vocab_size=self.vocab_size,
+                                   n_embd=5,
+                                   num_heads=1,
+                                   block_size=500,
+                                   n_layer=1, 
+                                   dropout=0.2, 
+                                   device='cpu')
+
+
+        logits = model(x)
+        self.assertTrue(logits.shape == (1, 1, self.vocab_size))
     
     def test_single_batch_loop(self):
         x = torch.tensor([[1,2]])
