@@ -35,7 +35,7 @@ class TestBigramLanguageModel(unittest.TestCase):
                                    n_layer=1, 
                                    dropout=0.2, 
                                    device='cpu')
-        
+        # ToDo: Find better way to implement positional encoding
         with self.assertRaises(ValueError):
             logits = model(x)
 
