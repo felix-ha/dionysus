@@ -247,6 +247,7 @@ def bigramV6():
     n_embd = 8
     num_heads = 4
     block_size = 5
+    dropout = 0.2
     dataset_training = LanguageModelDataset(corpus_file_training, block_size=5)
     data_loader_training = DataLoader(dataset_training, batch_size=10, shuffle=True, generator=generator)
     dataset_validation= LanguageModelDataset(corpus_file_validation,
@@ -258,7 +259,7 @@ def bigramV6():
 
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = BigramLanguageModelV6(vocab_size=len(dataset_training.vocabulary), n_embd=n_embd, num_heads=num_heads, block_size=block_size, device=device)
+    model = BigramLanguageModelV6(vocab_size=len(dataset_training.vocabulary), n_embd=n_embd, num_heads=num_heads, block_size=block_size, dropout=dropout, device=device)
     m = model.to(device)
 
     loss_func = cross_entropy_language_model
