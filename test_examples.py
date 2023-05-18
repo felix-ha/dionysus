@@ -9,7 +9,6 @@ class Test(unittest.TestCase):
         bigram()
     def test_simpleGPT(self):
         run_simpleGPT()
-        
 
 if __name__ == '__main__':
     unittest.main() 

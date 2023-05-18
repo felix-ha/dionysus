@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from training import train, cross_entropy_language_model
-from data import LanguageModelDataset
+from data import LanguageModelDataset, LanguageNameDataset
 from models import *
 
 
@@ -125,5 +125,35 @@ def run_simpleGPT():
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
     print(created_text)
 
+
+def run_RNN():
+    dataset = LanguageNameDataset()
+
+    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    data_loader_training = DataLoader(train_data, batch_size=1, shuffle=True)
+    data_loader_validation = DataLoader(test_data, batch_size=1, shuffle=False)
+
+    dim_embeddings = 2 #64
+    vocab_size = dataset.vocab_size
+    hidden_nodes = 2 #256
+    n_classes = len(dataset.label_names)
+
+    model = RNN(vocab_size, dim_embeddings, hidden_nodes, n_classes)
+
+    loss_func = nn.CrossEntropyLoss()
+    epochs = 1
+    lr = 0.001
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+
+    result = train(model,
+                    loss_func, 
+                    optimizer,
+                    training_loader=data_loader_training,
+                    validation_loader=data_loader_validation,
+                    epochs=epochs,
+                    device='cpu')    
+    print(result)
+
+
 if __name__ == "__main__": 
-    run_simpleGPT()
+    run_RNN()

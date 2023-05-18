@@ -3,6 +3,53 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
+class RNN(nn.Module):
+    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
+        super().__init__()
+        self.rnn = nn.Sequential(
+                nn.Embedding(vocab_size, dim_embeddings), #(B, T) -> (B, T, D)
+                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
+                #the tanh activation is built into the RNN object, so we don't need to do it here
+                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
+                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
+                )
+
+    def forward(self, x):
+        logits = self.rnn(x)
+        return logits
+    
+
+class LastTimeStep(nn.Module):
+    """
+    A class for extracting the hidden activations of the last time step following 
+    the output of a PyTorch RNN module. 
+    """
+    def __init__(self, rnn_layers=1, bidirectional=False):
+        super(LastTimeStep, self).__init__()
+        self.rnn_layers = rnn_layers
+        if bidirectional:
+            self.num_driections = 2
+        else:
+            self.num_driections = 1    
+    
+    def forward(self, input):
+        #Result is either a tupe (out, h_t)
+        #or a tuple (out, (h_t, c_t))
+        rnn_output = input[0]
+        last_step = input[1] #this will be h_t
+        if(type(last_step) == tuple):#unless it's a tuple, 
+            last_step = last_step[0]#then h_t is the first item in the tuple
+        batch_size = last_step.shape[1] #per docs, shape is: '(num_layers * num_directions, batch, hidden_size)'
+        #reshaping so that everything is separate 
+        last_step = last_step.view(self.rnn_layers, self.num_driections, batch_size, -1)
+        #We want the last layer's results
+        last_step = last_step[self.rnn_layers-1] 
+        #Re order so batch comes first
+        last_step = last_step.permute(1, 0, 2)
+        #Finally, flatten the last two dimensions into one
+        return last_step.reshape(batch_size, -1)
+
+
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
         super().__init__()

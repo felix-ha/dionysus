@@ -1,3 +1,8 @@
+import requests, zipfile, io
+import unicodedata
+import string
+from pathlib import Path
+
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -86,6 +91,80 @@ class LanguageModelDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.corpus_index[idx:idx+self.block_size],self.corpus_index[idx+1:idx+self.block_size+1]
+    
+
+
+def unicodeToAscii(s, all_letters):
+    """
+    Turns a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
+    """
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+        and c in all_letters
+    )
+
+
+class LanguageNameDataset(Dataset):
+    
+    def __init__(self):
+        data_dir = Path("data/names")
+        zip_file_url = "https://download.pytorch.org/tutorial/data.zip"
+        r = requests.get(zip_file_url)
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+
+        if not data_dir.exists():
+            z.extractall()
+
+        all_letters = string.ascii_letters + " .,;'"
+        self.vocab_size = len(all_letters)
+        n_letters = len(all_letters)
+        self.token_to_index = {}
+        for i in range(n_letters):
+            self.token_to_index[all_letters[i]] = i
+
+        name_language_data ={}
+        for zip_path in [str(p).replace("\\", "/") for p in data_dir.iterdir()]:
+            if zip_path.endswith(".txt"):
+                lang = zip_path[len("data/names/"):-len(".txt")]
+                with z.open(zip_path) as myfile:
+                    lang_names = [unicodeToAscii(line, all_letters).lower() for line in str(myfile.read(), encoding='utf-8').strip().split("\n")]
+                    name_language_data[lang] = lang_names
+
+        self.label_names = [x for x in name_language_data.keys()]
+        self.data = []
+        self.labels = []
+        for y, language in enumerate(self.label_names):
+            for sample in name_language_data[language]:
+                self.data.append(sample)
+                self.labels.append(y)
+        
+    def __len__(self):
+        return len(self.data)
+    
+    def string2InputVec(self, input_string):
+        """
+        This method will convert any input string into a vector of long values, according to the vocabulary used by this object. 
+        input_string: the string to convert to a tensor
+        """
+        T = len(input_string) #How many characters long is the string?
+        
+        #Create a new tensor to store the result in
+        name_vec = torch.zeros((T), dtype=torch.long)
+        #iterate through the string and place the appropriate values into the tensor
+        for pos, character in enumerate(input_string):
+            name_vec[pos] = self.token_to_index[character]
+            
+        return name_vec
+    
+    def __getitem__(self, idx):
+        name = self.data[idx]
+        label = self.labels[idx]
+        
+        #Conver the correct class label into a tensor for PyTorch
+        label_vec = torch.tensor([label], dtype=torch.long)
+        
+        return self.string2InputVec(name), label
 
 if __name__ == "__main__":
 
