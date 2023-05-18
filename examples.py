@@ -125,5 +125,54 @@ def run_simpleGPT():
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
     print(created_text)
 
+def run_GPT1():
+    corpus_file_training = 'data/small/training.txt'
+    corpus_file_validation = 'data/small/validation.txt'
+
+    generator = torch.Generator()
+    generator.manual_seed(5)
+
+    config =  Config(vocab_size = 0,
+            dim_embeddings = 8,
+            dim_context = 5,
+            num_heads = 4,
+            n_layer = 2,
+            dropout = 0.2,
+            device='cuda' if torch.cuda.is_available() else 'cpu')
+
+    dataset_training = LanguageModelDataset(corpus_file_training, block_size=config.dim_context)
+    data_loader_training = DataLoader(dataset_training, batch_size=10, shuffle=True, generator=generator)
+    dataset_validation= LanguageModelDataset(corpus_file_validation,
+                                             block_size=config.dim_context,
+                                             vocabulary=dataset_training.vocabulary,
+                                             encoder=dataset_training.encoder,
+                                             decoder=dataset_training.decoder)
+    data_loader_validation = DataLoader(dataset_validation, batch_size=10, shuffle=True, generator=generator)
+
+    config.vocab_size = len(dataset_training.vocabulary)
+
+    model = GPT1(config)
+    m = model.to(config.device)
+
+    print(sum(p.numel() for p in m.parameters()), 'parameters')
+
+    loss_func = cross_entropy_language_model
+    epochs = 2
+    lr = 0.001
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+
+    result = train(model,
+                    loss_func, 
+                    optimizer,
+                    training_loader=data_loader_training,
+                    validation_loader=data_loader_validation,
+                    epochs=epochs,
+                    device=config.device)    
+    print(result)
+
+    context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
+    created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
+    print(created_text)
+
 if __name__ == "__main__": 
-    run_simpleGPT()
+    run_GPT1()

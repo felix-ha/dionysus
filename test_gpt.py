@@ -1,41 +1,11 @@
-import torch
-import torch.nn as nn
-from torch.nn import functional as F
-#from models import *
-from dataclasses import dataclass
 
 import unittest
+import torch
+import torch.nn as nn
+from models import Config, GPT1
 
 
-@dataclass
-class Config:
-    vocab_size:int
-    dim_embeddings: int
-    dim_context: int
-    num_heads: int
-    n_layer: int
-    dropout: int 
-    device: str = 'cpu'
-
-
-class GPT1(nn.Module):
-    def __init__(self, config: Config):
-        super().__init__()
-        self.token_embedding_table = nn.Embedding(config.vocab_size, config.dim_embeddings)
-        self.position_embedding_table = nn.Embedding(config.dim_context, config.dim_embeddings)
-        self.lm_head = nn.Linear(config.dim_embeddings, config.vocab_size)
-        self.device = config.device
-
-    def forward(self, idx):
-        T = idx.shape[-1]
-        embedding_token = self.token_embedding_table(idx) 
-        embedding_position = self.position_embedding_table(torch.arange(T, device=self.device))
-        x = embedding_token + embedding_position 
-        logits = self.lm_head(x)
-        return logits
-    
-
-class TestGPT1(unittest.TestCase):
+class TestGPT(unittest.TestCase):
     @classmethod
     def setUpClass(self):
       self.config =  Config(vocab_size = 26,
@@ -122,5 +92,7 @@ class TestGPT1(unittest.TestCase):
         logits = model(x)
         self.assertTrue(logits.shape == (1, self.config.vocab_size))
 
+
 if __name__ == "__main__":
     unittest.main() 
+    
