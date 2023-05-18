@@ -31,6 +31,7 @@ class simpleGPT(nn.Module):
         x = self.blocks(x)
         logits = self.lm_head(x)
         return logits
+    
 
 class FeedFoward(nn.Module):
     def __init__(self, n_embd, dropout=0.0):
