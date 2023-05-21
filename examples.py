@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from training import train, cross_entropy_language_model
+from training import TrainingConfig, train, cross_entropy_language_model
 from data import LanguageModelDataset, LanguageNameDataset
 from models import *
 
@@ -24,12 +24,8 @@ def feadforward_moon():
     model = nn.Linear(in_features, out_features)
     loss_func = nn.CrossEntropyLoss()
 
-    device = torch.device("cpu")
-    epochs = 2
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    results_pd = train(model, loss_func, optimizer, training_loader, validation_loader, epochs, device)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=training_loader, validation_loader=validation_loader)
+    results_pd = train(train_config)
 
     print(results_pd)
 
@@ -48,18 +44,10 @@ def run_RNN():
     model = RNN(vocab_size, dim_embeddings, hidden_nodes, n_classes)
 
     loss_func = nn.CrossEntropyLoss()
-    epochs = 1
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 
-    result = train(model,
-                    loss_func, 
-                    optimizer,
-                    training_loader=data_loader_training,
-                    validation_loader=data_loader_validation,
-                    epochs=epochs,
-                    device='cpu')    
-    print(result)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)  
+    print(results_pd)
 
 def bigram():
     corpus_file_training = 'data/small/training.txt'
@@ -83,18 +71,9 @@ def bigram():
     m = model.to(device)
 
     loss_func = cross_entropy_language_model
-    epochs = 2
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    result = train(model,
-                    loss_func, 
-                    optimizer,
-                    training_loader=data_loader_training,
-                    validation_loader=data_loader_validation,
-                    epochs=epochs,
-                    device=device)    
-    print(result)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)     
+    print(results_pd)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=10)[0].tolist())
@@ -136,18 +115,9 @@ def run_simpleGPT():
     print(sum(p.numel() for p in m.parameters()), 'parameters')
 
     loss_func = cross_entropy_language_model
-    epochs = 2
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    result = train(model,
-                    loss_func, 
-                    optimizer,
-                    training_loader=data_loader_training,
-                    validation_loader=data_loader_validation,
-                    epochs=epochs,
-                    device=device)    
-    print(result)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)     
+    print(results_pd)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
@@ -185,18 +155,9 @@ def run_GPT1():
     print(sum(p.numel() for p in m.parameters()), 'parameters')
 
     loss_func = cross_entropy_language_model
-    epochs = 2
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    result = train(model,
-                    loss_func, 
-                    optimizer,
-                    training_loader=data_loader_training,
-                    validation_loader=data_loader_validation,
-                    epochs=epochs,
-                    device=config.device)   
-    print(result)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)     
+    print(results_pd)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
@@ -235,23 +196,14 @@ def run_GPT2():
     print(sum(p.numel() for p in m.parameters()), 'parameters')
 
     loss_func = cross_entropy_language_model
-    epochs = 2
-    lr = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-
-    result = train(model,
-                    loss_func, 
-                    optimizer,
-                    training_loader=data_loader_training,
-                    validation_loader=data_loader_validation,
-                    epochs=epochs,
-                    device=config.device)    
-    print(result)
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)     
+    print(results_pd)
 
     context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
     print(created_text)
 
 if __name__ == "__main__": 
-    run_GPT2()
+    feadforward_moon()
 

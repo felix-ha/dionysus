@@ -7,44 +7,65 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, TensorDataset
+from dataclasses import dataclass
+
+@dataclass
+class TrainingConfig:
+    model: any
+    loss_func: any
+    training_loader: DataLoader
+    validation_loader: DataLoader
+    lr: float = 0.001
+    optimizer: str = "SGD"
+    epochs: int = 2
+    device: str = torch.device("cpu")
+
+    def __post_init__(self):
+        if self.optimizer == "SGD": 
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        
 
 
-def train(model, loss_func, optimizer, training_loader, validation_loader, epochs, device):
+def train(config: TrainingConfig):
     to_track = ["epoch_time", "training_loss"]
-    if validation_loader is not None:
+    if config.validation_loader is not None:
         to_track.append("validation_loss")
     results = {}
     for item in to_track:
         results[item] = []
 
-    model.to(device)
-    for epoch in tqdm(range(epochs), desc="Epoch"):
-        model = model.train()
-        epoch_time = run_epoch(model, loss_func, optimizer, training_loader, device, results, prefix="training")
+    config.model.to(config.device)
+    for epoch in tqdm(range(config.epochs), desc="Epoch"):
+        config.model = config.model.train()
+        epoch_time = run_epoch(config, results, prefix="training")
 
-        if validation_loader is not None:
-            model = model.eval()
+        if config.validation_loader is not None:
+            config.model = config.model.eval()
             with torch.no_grad():
-                run_epoch(model, loss_func, optimizer, validation_loader, device, results, prefix="validation")
+                run_epoch(config, results, prefix="validation")
     
         results["epoch_time"].append(epoch_time)
 
     return pd.DataFrame.from_dict(results)  
 
-def run_epoch(model, loss_func, optimizer, data_loader, device, results, prefix=""):
+def run_epoch(config: TrainingConfig, results: dict, prefix=""):
+    if prefix == "training":
+        data_loader = config.training_loader
+    if prefix == "validation":
+        data_loader = config.validation_loader
     running_loss = []
     start = time.time()
     for x, y in data_loader:         
-        x = x.to(device)
-        y = y.to(device)
+        x = x.to(config.device)
+        y = y.to(config.device)
 
-        y_hat = model(x) 
-        loss = loss_func(y_hat, y)
+        y_hat = config.model(x) 
+        loss = config.loss_func(y_hat, y)
 
-        if model.training:
+        if config.model.training:
             loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            config.optimizer.step()
+            config.optimizer.zero_grad()
 
         running_loss.append(loss.item())
     end =  time.time()
