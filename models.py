@@ -1,6 +1,19 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from dataclasses import dataclass
+
+
+@dataclass
+class Config:
+    vocab_size:int
+    dim_embeddings: int
+    dim_context: int
+    num_heads: int
+    n_layer: int
+    dropout: int 
+    bias: bool = True
+    device: str = 'cpu'
 
 
 class RNN(nn.Module):
@@ -78,6 +91,72 @@ class simpleGPT(nn.Module):
         x = self.blocks(x)
         logits = self.lm_head(x)
         return logits
+    
+
+class GPT1(nn.Module):
+    def __init__(self, config: Config):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(config.vocab_size, config.dim_embeddings)
+        self.position_embedding_table = nn.Embedding(config.dim_context, config.dim_embeddings)
+        self.blocks = nn.Sequential(*[BlockGPT1(config.dim_embeddings, config.num_heads, config.dim_context, config.dropout) for _ in range(config.n_layer)])
+        self.lm_head = nn.Linear(config.dim_embeddings, config.vocab_size)
+        self.device = config.device
+
+    def forward(self, idx):
+        T = idx.shape[-1]
+        embedding_token = self.token_embedding_table(idx) 
+        embedding_position = self.position_embedding_table(torch.arange(T, device=self.device))
+        x = embedding_token + embedding_position 
+        x = self.blocks(x)
+        logits = self.lm_head(x)
+        return logits
+    
+
+class GPT2(nn.Module):
+    def __init__(self, config: Config):
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(config.vocab_size, config.dim_embeddings)
+        self.position_embedding_table = nn.Embedding(config.dim_context, config.dim_embeddings)
+        self.drop = nn.Dropout(config.dropout)
+        self.blocks = nn.Sequential(*[BlockGPT2(config.dim_embeddings, config.num_heads, config.dim_context, config.bias, config.dropout) for _ in range(config.n_layer)])
+        self.lm_head = nn.Linear(config.dim_embeddings, config.vocab_size)
+        self.device = config.device
+
+    def forward(self, idx):
+        T = idx.shape[-1]
+        embedding_token = self.token_embedding_table(idx) 
+        embedding_position = self.position_embedding_table(torch.arange(T, device=self.device))
+        x = self.drop(embedding_token + embedding_position)
+        x = self.blocks(x)
+        logits = self.lm_head(x)
+        return logits
+
+
+class LayerNorm(nn.Module):
+    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+
+    def __init__(self, ndim, bias):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
+     
+
+class FeedFowardGPT2(nn.Module):
+    def __init__(self, n_embd, dropout=0.0):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.GELU(),
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
+        )
+    
+    def forward(self, x):
+        return self.net(x)
+
 
 class FeedFoward(nn.Module):
     def __init__(self, n_embd, dropout=0.0):
@@ -105,7 +184,7 @@ class Head(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        B,T,C = x.shape
+        T = x.shape[-2]
         k = self.key(x)   
         q = self.query(x) 
         wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 
@@ -148,6 +227,39 @@ class Block(nn.Module):
     def forward(self, x):
         x = x + self.sa(self.ln1(x))
         x = x + self.ffwd(self.ln2(x))
+        return x
+    
+class BlockGPT1(nn.Module):
+    def __init__(self, n_embd, n_head, block_size, dropout=0.0):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.multi_head = MultiHeadAttention(n_head, head_size, n_embd, block_size, dropout)
+        self.ffwd = FeedFoward(n_embd, dropout)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+
+    def forward(self, x):
+        x = self.multi_head(x) + x
+        x = self.ln1(x)
+        x = self.ffwd(x) + x
+        x = self.ln2(x)
+        return x
+    
+
+class BlockGPT2(nn.Module):
+    def __init__(self, n_embd, n_head, block_size, bias, dropout=0.0):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.multi_head = MultiHeadAttention(n_head, head_size, n_embd, block_size, dropout)
+        self.ffwd = FeedFowardGPT2(n_embd, dropout)
+        self.ln1 = LayerNorm(n_embd, bias)
+        self.ln2 = LayerNorm(n_embd, bias)
+
+
+    def forward(self, x):
+        x = x + self.multi_head(self.ln1(x)) 
+        x = x + self.ffwd(self.ln2(x)) 
         return x
    
     
