@@ -1,7 +1,11 @@
 import unittest
+import os
+import tempfile
 from models import *
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from training import TrainingConfig, train
 
 
 class TestBigramLanguageModel(unittest.TestCase):
@@ -238,6 +242,45 @@ class TestBigramLanguageModel(unittest.TestCase):
                                                          [[1.0, 8.0, 0.0],
                                                          [3.0, 9.0, 0.0],
                                                          [5.0, 7.0, 0.0]]])))
+            
+    def test_serialize_model(self):
+        from sklearn.datasets import make_moons
+
+        X_train, y_train = make_moons(n_samples=2, noise=0.1)
+        X_validation, y_validation = make_moons(n_samples=2, noise=0.1)
+        train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
+                                    torch.tensor(y_train, dtype=torch.long))
+        validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
+                                            torch.tensor(y_validation, dtype=torch.long))
+        training_loader = DataLoader(train_dataset, shuffle=True)
+        validation_loader = DataLoader(validation_dataset)
+
+        in_features = 2
+        out_features = 2
+        model = nn.Linear(in_features, out_features)
+        loss_func = nn.CrossEntropyLoss()
+        x = torch.tensor([0.5, 0.4])
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            tmp_save_path = os.path.join(tempdir, 'model.pth')
+
+            train_config = TrainingConfig(model=model,
+                                        loss_func=loss_func,
+                                        training_loader=training_loader, 
+                                        validation_loader=validation_loader,
+                                        save_model=True,
+                                        save_path=tmp_save_path)
+            train(train_config)
+            y_saved = model(x)
+            A_saved = model.weight.data
+
+            model_loaded = nn.Linear(in_features, out_features)
+            model_loaded.load_state_dict(torch.load(train_config.save_path))
+            y_loaded = model_loaded(x)
+            A_loaded = model_loaded.weight.data
+                
+        self.assertTrue(torch.equal(A_saved, A_loaded))
+        self.assertTrue(torch.equal(y_saved, y_loaded))
 
 if __name__ == '__main__':
     unittest.main() 

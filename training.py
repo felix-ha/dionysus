@@ -19,6 +19,8 @@ class TrainingConfig:
     optimizer: str = "SGD"
     epochs: int = 2
     device: str = torch.device("cpu")
+    save_model: bool = False
+    save_path: str = None
 
     def __post_init__(self):
         if self.optimizer == "SGD": 
@@ -45,6 +47,9 @@ def train(config: TrainingConfig):
                 run_epoch(config, results, prefix="validation")
     
         results["epoch_time"].append(epoch_time)
+
+    if config.save_model:
+        torch.save(config.model.state_dict(), config.save_path)
 
     return pd.DataFrame.from_dict(results)  
 
