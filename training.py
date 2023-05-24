@@ -56,7 +56,7 @@ def train(config: TrainingConfig):
 
     if config.save_model:
         torch.save(config.model.state_dict(), os.path.join(config.save_path, config.model_name + ".pth"))
-        torch.onnx.export(config.model, x_sample[0], os.path.join(config.save_path, config.model_name +  ".onnx"), input_names=["features"], output_names=["logits"])
+        torch.onnx.export(config.model, x_sample, os.path.join(config.save_path, config.model_name +  ".onnx"), input_names=["features"], output_names=["logits"])
 
     return pd.DataFrame.from_dict(results)  
 
