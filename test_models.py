@@ -262,20 +262,19 @@ class TestBigramLanguageModel(unittest.TestCase):
         x = torch.tensor([0.5, 0.4])
 
         with tempfile.TemporaryDirectory() as tempdir:
-            tmp_save_path = os.path.join(tempdir, 'model.pth')
-
             train_config = TrainingConfig(model=model,
                                         loss_func=loss_func,
                                         training_loader=training_loader, 
                                         validation_loader=validation_loader,
                                         save_model=True,
-                                        save_path=tmp_save_path)
+                                        save_path=tempdir,
+                                        model_name="simple_model")
             train(train_config)
             y_saved = model(x)
             A_saved = model.weight.data
 
             model_loaded = nn.Linear(in_features, out_features)
-            model_loaded.load_state_dict(torch.load(train_config.save_path))
+            model_loaded.load_state_dict(torch.load(os.path.join(train_config.save_path, train_config.model_name + ".pth")))
             y_loaded = model_loaded(x)
             A_loaded = model_loaded.weight.data
                 

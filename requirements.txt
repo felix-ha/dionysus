@@ -5,7 +5,8 @@ seaborn==0.12.2
 scikit-learn==1.2.2
 
 -f https://download.pytorch.org/whl/torch_stable.html     
-torch==2.0.0+cpu
+torch==2.0.1+cpu
+onnx==1.14.0 
 
 tqdm==2.2.3
 requests==2.30.0 

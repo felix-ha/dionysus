@@ -1,5 +1,6 @@
 import time
 from tqdm import tqdm
+import os
 
 import numpy as np
 import pandas as pd
@@ -21,10 +22,15 @@ class TrainingConfig:
     device: str = torch.device("cpu")
     save_model: bool = False
     save_path: str = None
+    model_name: str = None
 
     def __post_init__(self):
         if self.optimizer == "SGD": 
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+
+        if self.save_model:
+            if not os.path.exists(self.save_path):
+                os.mkdir(self.save_path)
         
 
 
@@ -39,7 +45,7 @@ def train(config: TrainingConfig):
     config.model.to(config.device)
     for epoch in tqdm(range(config.epochs), desc="Epoch"):
         config.model = config.model.train()
-        epoch_time = run_epoch(config, results, prefix="training")
+        epoch_time, x_sample = run_epoch(config, results, prefix="training")
 
         if config.validation_loader is not None:
             config.model = config.model.eval()
@@ -49,7 +55,8 @@ def train(config: TrainingConfig):
         results["epoch_time"].append(epoch_time)
 
     if config.save_model:
-        torch.save(config.model.state_dict(), config.save_path)
+        torch.save(config.model.state_dict(), os.path.join(config.save_path, config.model_name + ".pth"))
+        torch.onnx.export(config.model, x_sample[0], os.path.join(config.save_path, config.model_name +  ".onnx"), input_names=["features"], output_names=["logits"])
 
     return pd.DataFrame.from_dict(results)  
 
@@ -75,7 +82,7 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
         running_loss.append(loss.item())
     end =  time.time()
     results[prefix + "_loss"].append(np.mean(running_loss))
-    return end-start
+    return end-start, x
 
 def cross_entropy_language_model(logits, targets):
     """

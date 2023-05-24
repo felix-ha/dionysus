@@ -6,6 +6,8 @@ from training import TrainingConfig, train, cross_entropy_language_model
 from data import LanguageModelDataset, LanguageNameDataset
 from models import *
 
+import os
+
 
 def feadforward_moon():
     from sklearn.datasets import make_moons
@@ -16,15 +18,21 @@ def feadforward_moon():
                                 torch.tensor(y_train, dtype=torch.long))
     validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
                                         torch.tensor(y_validation, dtype=torch.long))
-    training_loader = DataLoader(train_dataset, shuffle=True)
-    validation_loader = DataLoader(validation_dataset)
+    training_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=2,)
 
     in_features = 2
     out_features = 2
     model = nn.Linear(in_features, out_features)
     loss_func = nn.CrossEntropyLoss()
 
-    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=training_loader, validation_loader=validation_loader)
+    train_config = TrainingConfig(model=model,
+                                   loss_func=loss_func, 
+                                   training_loader=training_loader, 
+                                   validation_loader=validation_loader,
+                                   save_model=True,
+                                   save_path=os.path.join(os.getcwd(), "trainings_run"),
+                                   model_name="test")
     results_pd = train(train_config)
 
     print(results_pd)
