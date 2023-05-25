@@ -277,24 +277,24 @@ class SmarterAttentionNet(nn.Module):
         )
         
     
-def forward(self, input):
+    def forward(self, input):
 
-    mask = getMaskByFill(input)
+        mask = getMaskByFill(input)
 
-    h = self.backbone(input) #(B, T, D) -> (B, T, H)
+        h = self.backbone(input) #(B, T, D) -> (B, T, H)
 
-    #h_context = torch.mean(h, dim=1) 
-    #computes torch.mean but ignoring the masked out parts
-    #first add together all the valid items
-    h_context = (mask.unsqueeze(-1)*h).sum(dim=1)#(B, T, H) -> (B, H)
-    #then divide by the number of valid items, pluss a small value incase a bag was all empty
-    h_context = h_context/(mask.sum(dim=1).unsqueeze(-1)+1e-10)
+        #h_context = torch.mean(h, dim=1) 
+        #computes torch.mean but ignoring the masked out parts
+        #first add together all the valid items
+        h_context = (mask.unsqueeze(-1)*h).sum(dim=1)#(B, T, H) -> (B, H)
+        #then divide by the number of valid items, pluss a small value incase a bag was all empty
+        h_context = h_context/(mask.sum(dim=1).unsqueeze(-1)+1e-10)
 
-    scores = self.score_net(h, h_context) # (B, T, H) , (B, H) -> (B, T, 1)
+        scores = self.score_net(h, h_context) # (B, T, H) , (B, H) -> (B, T, 1)
 
-    final_context, _ = self.apply_attn(h, scores, mask=mask)
+        final_context, _ = self.apply_attn(h, scores, mask=mask)
 
-    return self.prediction_net(final_context)
+        return self.prediction_net(final_context)
 
 
 def train_baseline(): 
