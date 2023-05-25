@@ -5,6 +5,7 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset, DataLoader
+import numpy as np
 
 
 def get_distinct_characters(text: str) -> list[str]:
@@ -165,6 +166,73 @@ class LanguageNameDataset(Dataset):
         label_vec = torch.tensor([label], dtype=torch.long)
         
         return self.string2InputVec(name), label
+
+
+class LargestDigit(Dataset):
+    """
+    Creates a modified version of a dataset where some number of samples are taken, 
+    and the true label is the largest label sampled. When used with MNIST the labels 
+    correspond to their values (e.g., digit "6" has label 6)
+    """
+
+    def __init__(self, dataset, toSample=3):
+        """
+        dataset: the dataset to sample from
+        toSample: the number of items from the dataset to sample
+        """
+        self.dataset = dataset
+        self.toSample = toSample
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        #Randomly select n=self.toSample items from the dataset
+        selected = np.random.randint(0,len(self.dataset), size=self.toSample)
+        
+        #Stack the n items of shape (B, *) shape into (B, n, *)
+        x_new = torch.stack([self.dataset[i][0] for i in selected])
+        #Label is the maximum label
+        y_new = max([self.dataset[i][1] for i in selected])
+        #Return (data, label) pair!
+        return x_new, y_new
+    
+
+class LargestDigitVariable(Dataset):
+    """
+    Creates a modified version of a dataset where some variable number of samples are 
+    taken, and the true label is the largest label sampled. When used with MNIST the
+    labels correspond to their values (e.g., digit "6" has label 6). Each datum will 
+    be padded with 0 values if the maximum number of items was not sampled. 
+    """
+
+    def __init__(self, dataset, maxToSample=6):
+        """
+        dataset: the dataset to sample from
+        toSample: the number of items from the dataset to sample
+        """
+        self.dataset = dataset
+        self.maxToSample = maxToSample
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        
+        #NEW: how many items should we select?
+        how_many = np.random.randint(1,self.maxToSample, size=1)[0]
+        #Randomly select n=self.toSample items from the dataset
+        selected = np.random.randint(0,len(self.dataset), size=how_many)
+        
+        #Stack the n items of shape (B, *) shape into (B, n, *)
+        #NEW: pad with zero values up to the max size
+        x_new = torch.stack([self.dataset[i][0] for i in selected] + 
+                            [torch.zeros((1,28,28)) for i in range(self.maxToSample-how_many)])
+        #Label is the maximum label
+        y_new = max([self.dataset[i][1] for i in selected])
+        #Return (data, label) pair
+        return x_new, y_new
+
 
 if __name__ == "__main__":
 

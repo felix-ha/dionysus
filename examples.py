@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+import torchvision
+import torchvision.transforms as transforms
 
 from training import TrainingConfig, train, cross_entropy_language_model
-from data import LanguageModelDataset, LanguageNameDataset
+from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable
 from models import *
 
 import os
@@ -86,7 +88,6 @@ def bigram():
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=10)[0].tolist())
     print(created_text)
-
 
 def run_simpleGPT():
     corpus_file_training = 'data/small/training.txt'
@@ -212,6 +213,157 @@ def run_GPT2():
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
     print(created_text)
 
+# MNIST ATTENTION
+
+def train_baseline(): 
+    try: 
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=False)
+        mnist_validation = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=False)
+    except:
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=True)
+        mnist_validation  = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=True)
+
+
+
+    B = 2
+
+    largest_training = LargestDigit(mnist_train)
+    largest_validation = LargestDigit(mnist_validation)
+
+    training_loader = DataLoader(largest_training, batch_size=B, shuffle=True)
+    validation_loader = DataLoader(largest_validation, batch_size=B)
+
+    H = 5
+    classes = 10
+    simpleNet = nn.Sequential(
+        nn.Flatten(),
+        nn.Linear(784*3,H), # 784*3 because there are 784 pixels in an image and 3 images in the bag
+        nn.LeakyReLU(),
+        nn.BatchNorm1d(H),
+        nn.Linear(H,H),
+        nn.LeakyReLU(),
+        nn.BatchNorm1d(H),
+        nn.Linear(H,H),
+        nn.LeakyReLU(),
+        nn.BatchNorm1d(H),
+        nn.Linear(H, classes)
+    ) 
+
+    train_config = TrainingConfig(model=simpleNet,
+                                    loss_func=nn.CrossEntropyLoss(),
+                                    training_loader=training_loader,
+                                    validation_loader=validation_loader,
+                                    save_model=True,
+                                    save_path=os.path.join(os.getcwd(), "attention"),
+                                    model_name="simple")
+    result = train(train_config)
+
+
+    print("done")
+
+def train_simple_attention():
+    try: 
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=False)
+        mnist_validation = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=False)
+    except:
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=True)
+        mnist_validation  = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=True)
+
+    B = 2
+
+    largest_training = LargestDigit(mnist_train)
+    largest_validation = LargestDigit(mnist_validation)
+
+    training_loader = DataLoader(largest_training, batch_size=B, shuffle=True)
+    validation_loader = DataLoader(largest_validation, batch_size=B)
+
+    D = 28*28
+    H = 5
+    classes = 10
+
+    # Feature extraction 
+    backboneNetwork = nn.Sequential(
+        Flatten2(),# Shape is now (B, T, D)
+        nn.Linear(D,H), #Shape becomes (B, T, H)
+        nn.LeakyReLU(),
+        nn.Linear(H,H),
+        nn.LeakyReLU(),
+        nn.Linear(H,H),
+        nn.LeakyReLU(), #still (B, T, H) on the way out
+    )
+
+    # Weights
+    attentionMechanism = nn.Sequential(
+    #Shape is (B, T, H)
+    nn.Linear(H,H),
+    nn.LeakyReLU(),
+    nn.Linear(H, 1), # (B, T, 1)
+    nn.Softmax(dim=1),
+    )
+
+    simpleAttentionNet = nn.Sequential(
+        #input is (B, T, C, W, H). backbone & attention will be used by combiner to process
+        Combiner(backboneNetwork, attentionMechanism), # result is (B, H)
+        nn.BatchNorm1d(H),
+        nn.Linear(H,H),
+        nn.LeakyReLU(),
+        nn.BatchNorm1d(H),
+        nn.Linear(H, classes)
+    )
+
+    train_config = TrainingConfig(model=simpleAttentionNet,
+                                  loss_func=nn.CrossEntropyLoss(),
+                                  training_loader=training_loader,
+                                  validation_loader=validation_loader,
+                                  save_model=True,
+                                  save_path=os.path.join(os.getcwd(), "attention"),
+                                  model_name="simple")
+    result = train(train_config)
+
+
+    print("done")
+
+def train_mnist_attention():
+    try: 
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=False)
+        mnist_validation = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=False)
+    except:
+        mnist_train = torchvision.datasets.MNIST("data/", train=True, transform=transforms.ToTensor(), download=True)
+        mnist_validation  = torchvision.datasets.MNIST("data/", train=False, transform=transforms.ToTensor(), download=True)
+
+    B = 10
+
+    largest_train = LargestDigitVariable(mnist_train)
+    largest_validation = LargestDigitVariable(mnist_validation)
+    training_loader = DataLoader(largest_train, batch_size=B, shuffle=True)
+    validation_loader = DataLoader(largest_validation, batch_size=B)
+
+
+
+    D = 28*28
+    H = 5
+    classes = 10
+
+    model = SmarterAttentionNet(D, H, classes)
+    train_config = TrainingConfig(model=model,
+                                  epochs=10000,
+                                  loss_func=nn.CrossEntropyLoss(),
+                                  training_loader=training_loader,
+                                  validation_loader=validation_loader,
+                                  save_model=True,
+                                  save_path=os.path.join(os.getcwd(), "attention"),
+                                  model_name="simple")
+    result = train(train_config)
+
+    print(result)
+
+
+    print("done")
+
+
 if __name__ == "__main__": 
     feadforward_moon()
+    train_baseline()
+    train_simple_attention()
+    train_mnist_attention()
 
