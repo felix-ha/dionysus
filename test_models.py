@@ -8,6 +8,21 @@ from torch.utils.data import DataLoader, TensorDataset
 from training import TrainingConfig, train
 
 
+class TestSanityChecks(unittest.TestCase):
+    def test_RNN(self):
+        B, T, D = 2, 5, 2
+        H = 3
+        x = torch.rand([B, T, D])
+        h_0 = torch.zeros([1, B, H]) # 1 is for number of layers, here 1
+
+        rnn = nn.RNN(D, H, batch_first=True)
+        output, h_n = rnn(x, h_0)
+
+        self.assertTrue(output.shape == (B, T, H))
+        self.assertTrue(h_n.shape == (1, B, H))
+
+
+
 class TestBigramLanguageModel(unittest.TestCase):
     @classmethod
     def setUpClass(self):

@@ -80,7 +80,6 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
             config.optimizer.zero_grad()
 
         running_loss.append(loss.item())
-        break 
     end =  time.time()
     results[prefix + "_loss"].append(np.mean(running_loss))
     return end-start, x

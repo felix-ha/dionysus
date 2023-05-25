@@ -92,7 +92,25 @@ class LanguageModelDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.corpus_index[idx:idx+self.block_size],self.corpus_index[idx+1:idx+self.block_size+1]
-    
+
+
+def pad_and_pack(batch):
+    #1, 2, & 3: organize the batch input lengths, inputs, and outputs as seperate lists
+    input_tensors = []
+    labels = []
+    lengths = []
+    for x, y in batch:
+        input_tensors.append(x)
+        labels.append(y)
+        lengths.append(x.shape[0]) #Assume shape is (T, *)
+    #4: create the padded version of the input
+    x_padded = torch.nn.utils.rnn.pad_sequence(input_tensors, batch_first=False)
+    #5: create the packed version from the padded & lengths
+    x_packed = torch.nn.utils.rnn.pack_padded_sequence(x_padded, lengths, batch_first=False, enforce_sorted=False)
+    #Convert the lengths into a tensor
+    y_batched = torch.as_tensor(labels, dtype=torch.long)
+    #6: return a tuple of the packed inputs and their labels
+    return x_packed, y_batched
 
 
 def unicodeToAscii(s, all_letters):

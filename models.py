@@ -33,6 +33,46 @@ class RNN(nn.Module):
         return logits
     
 
+class RNNPacked(nn.Module):
+    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
+        super().__init__()
+        self.rnn = nn.Sequential(
+                EmbeddingPackable(nn.Embedding(vocab_size, dim_embeddings)), #(B, T) -> (B, T, D)
+                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
+                #the tanh activation is built into the RNN object, so we don't need to do it here
+                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
+                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
+                )
+
+    def forward(self, x):
+        logits = self.rnn(x)
+        return logits
+
+
+class EmbeddingPackable(nn.Module):
+    """
+    The embedding layer in PyTorch does not support Packed Sequence objects. 
+    This wrapper class will fix that. If a normal input comes in, it will 
+    use the regular Embedding layer. Otherwise, it will work on the packed 
+    sequence to return a new Packed sequence of the appropriate result. 
+    """
+    def __init__(self, embd_layer):
+        super(EmbeddingPackable, self).__init__()
+        self.embd_layer = embd_layer 
+
+    def forward(self, input):
+        if type(input) == torch.nn.utils.rnn.PackedSequence:
+            # We need to unpack the input, 
+            sequences, lengths = torch.nn.utils.rnn.pad_packed_sequence(input.cpu(), batch_first=True)
+            #Embed it
+            sequences = self.embd_layer(sequences.to(input.data.device))
+            #And pack it into a new sequence
+            return torch.nn.utils.rnn.pack_padded_sequence(sequences, lengths.cpu(), 
+                                                            batch_first=True, enforce_sorted=False)
+        else:#apply to normal data
+            return self.embd_layer(input)   
+
+
 class LastTimeStep(nn.Module):
     """
     A class for extracting the hidden activations of the last time step following 

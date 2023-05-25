@@ -5,7 +5,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from training import TrainingConfig, train, cross_entropy_language_model
-from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable
+from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack
 from models import *
 
 import os
@@ -52,6 +52,26 @@ def run_RNN():
     n_classes = len(dataset.label_names)
 
     model = RNN(vocab_size, dim_embeddings, hidden_nodes, n_classes)
+
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)  
+    print(results_pd)
+
+def run_RNN_packed():
+    dataset = LanguageNameDataset()
+
+    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    data_loader_training = DataLoader(train_data, batch_size=16, shuffle=True, collate_fn=pad_and_pack)
+    data_loader_validation = DataLoader(test_data, batch_size=16, shuffle=False, collate_fn=pad_and_pack)
+
+    dim_embeddings = 2 #64
+    vocab_size = dataset.vocab_size
+    hidden_nodes = 2 #256
+    n_classes = len(dataset.label_names)
+
+    model = RNNPacked(vocab_size, dim_embeddings, hidden_nodes, n_classes)
 
     loss_func = nn.CrossEntropyLoss()
 
@@ -346,7 +366,6 @@ def train_mnist_attention():
 
     model = SmarterAttentionNet(D, H, classes)
     train_config = TrainingConfig(model=model,
-                                  epochs=10000,
                                   loss_func=nn.CrossEntropyLoss(),
                                   training_loader=training_loader,
                                   validation_loader=validation_loader,
@@ -362,8 +381,5 @@ def train_mnist_attention():
 
 
 if __name__ == "__main__": 
-    feadforward_moon()
-    train_baseline()
-    train_simple_attention()
-    train_mnist_attention()
-
+    run_RNN()
+    run_RNN_packed()
