@@ -4,10 +4,11 @@ import os
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import accuracy_score
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 from dataclasses import dataclass
 
 @dataclass
@@ -23,6 +24,7 @@ class TrainingConfig:
     save_model: bool = False
     save_path: str = None
     model_name: str = None
+    score_funcs={'accuracy':accuracy_score}
 
     def __post_init__(self):
         if self.optimizer == "SGD": 
@@ -38,6 +40,11 @@ def train(config: TrainingConfig):
     to_track = ["epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
+    for name, _ in config.score_funcs.items():
+        to_track.append("training_" + name)
+        to_track.append("validation_" + name)
+
+    
     results = {}
     for item in to_track:
         results[item] = []
@@ -66,6 +73,8 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
     if prefix == "validation":
         data_loader = config.validation_loader
     running_loss = []
+    y_true = []
+    y_pred = []
     start = time.time()
     for x, y in data_loader:         
         x = x.to(config.device)
@@ -80,7 +89,28 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
             config.optimizer.zero_grad()
 
         running_loss.append(loss.item())
+
+        if len(config.score_funcs) > 0 and isinstance(y, torch.Tensor):
+            #moving labels & predictions back to CPU for computing / storing predictions
+            labels = y.detach().cpu().numpy()
+            y_hat = y_hat.detach().cpu().numpy()
+            #add to predictions so far
+            y_true.extend(labels.tolist())
+            y_pred.extend(y_hat.tolist())
+        
     end =  time.time()
+
+    y_pred = np.asarray(y_pred)
+    if len(y_pred.shape) == 2 and y_pred.shape[1] > 1: #We have a classification problem, convert to labels
+        y_pred = np.argmax(y_pred, axis=1)
+    #Else, we assume we are working on a regression problem
+    
+    for name, score_func in config.score_funcs.items():
+        try:
+            results[prefix + "_" + name].append( score_func(y_true, y_pred) )
+        except:
+            results[prefix + "_" + name].append(float("NaN"))
+
     results[prefix + "_loss"].append(np.mean(running_loss))
     return end-start, x
 

@@ -381,5 +381,4 @@ def train_mnist_attention():
 
 
 if __name__ == "__main__": 
-    run_RNN()
-    run_RNN_packed()
+    feadforward_moon()
