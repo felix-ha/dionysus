@@ -2,9 +2,15 @@ import requests, zipfile, io
 import unicodedata
 import string
 from pathlib import Path
+from io import BytesIO
+from zipfile import ZipFile
+from urllib.request import urlopen
+import re
+import pickle
 
 import torch
 from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
 import numpy as np
 
 
@@ -250,6 +256,111 @@ class LargestDigitVariable(Dataset):
         y_new = max([self.dataset[i][1] for i in selected])
         #Return (data, label) pair
         return x_new, y_new
+
+
+def download_prepare_and_save_eng_fra(pkl_file):
+    all_data = []
+    resp = urlopen("https://download.pytorch.org/tutorial/data.zip")
+    zipfile = ZipFile(BytesIO(resp.read()))
+    for line in zipfile.open("data/eng-fra.txt").readlines():
+        line = line.decode('utf-8').lower()#lower case only please
+        line = re.sub(r"[-.!?]+", r" ", line)#no puntuation
+        source_lang, target_lang = line.split("\t")[0:2]
+        all_data.append( (source_lang.strip(), target_lang.strip()))
+
+    with open(pkl_file, 'wb') as file:
+        pickle.dump(all_data, file)
+
+def load_raw_eng_fra(pkl_file):
+    with open(pkl_file, 'rb') as file:
+        return pickle.load(file)
+
+
+class TranslationDataset(Dataset):
+    """
+    Takes a dataset with tuples of strings (x, y) and
+    converts them to tuples of int64 tensors. 
+    This makes it easy to encode Seq2Seq problems.
+    
+    Strings in the input and output targets will be broken up by spaces
+    """
+
+    def __init__(self, pkl_file, MAX_LEN, SOS_token, EOS_token, PAD_token):
+        """
+        lang_pairs: a List[Tuple[String,String]] containing the source,target pairs for a Seq2Seq problem. 
+        word2indx: a Map[String,Int] that converts each word in an input string into a unique ID. 
+        """
+        try:
+            all_data = load_raw_eng_fra(pkl_file) 
+        except:
+            download_prepare_and_save_eng_fra(pkl_file)
+            all_data = load_raw_eng_fra(pkl_file) 
+
+
+        short_subset = [] #the subset we will actually use
+        for (s, t) in all_data:
+            if max(len(s.split(" ")), len(t.split(" "))) <= MAX_LEN:
+                short_subset.append((s,t))
+        print("Using ", len(short_subset), "/", len(all_data))
+
+        self.SOS_token = SOS_token
+        self.EOS_token = EOS_token 
+        self.PAD_token = PAD_token
+
+        # Words from the source and target language are thrown in the same vocabulary
+        word2indx = {self.PAD_token:0, self.SOS_token:1, self.EOS_token:2}
+        for s, t in short_subset:
+            for sentance in (s, t):
+                for word in sentance.split(" "):
+                    if word not in word2indx:
+                        word2indx[word] = len(word2indx)
+        print("Size of Vocab: ", len(word2indx))
+        #build the inverted dict for looking at the outputs later
+        indx2word = {}
+        for word, indx in word2indx.items():
+            indx2word[indx] = word
+
+        self.lang_pairs = short_subset
+        self.word2indx = word2indx
+        self.indx2word = indx2word
+
+    def __len__(self):
+        return len(self.lang_pairs)
+
+    def __getitem__(self, idx):
+        x, y = self.lang_pairs[idx]
+        x = self.SOS_token + " " + x + " " + self.EOS_token
+        y = y + " " + self.EOS_token
+        
+        #convert to lists of integers
+        x = [self.word2indx[w] for w in x.split(" ")]
+        y = [self.word2indx[w] for w in y.split(" ")]
+        
+        x = torch.tensor(x, dtype=torch.int64)
+        y = torch.tensor(y, dtype=torch.int64)
+        
+        return x, y
+    
+
+def pad_batch(batch, word2indx, PAD_token):
+    """
+    Pad items in the batch to the length of the longest item in the batch
+    """
+    #We actually have two different maxiumum lengths! The max length of the input sequences, and the max 
+    #length of the output sequences. So we will determine each seperatly, and only pad the inputs/outputs
+    #by the exact amount we need
+    max_x = max([i[0].size(0) for i in batch])
+    max_y = max([i[1].size(0) for i in batch])
+    
+    PAD = word2indx[PAD_token]
+    
+    #We will use the F.pad function to pad each tensor to the right
+    X = [F.pad(i[0], (0,max_x-i[0].size(0)), value=PAD) for i in batch]
+    Y = [F.pad(i[1], (0,max_y-i[1].size(0)), value=PAD) for i in batch]
+    
+    X, Y = torch.stack(X), torch.stack(Y)
+    
+    return (X, Y), Y
 
 
 if __name__ == "__main__":

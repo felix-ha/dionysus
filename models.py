@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from dataclasses import dataclass
 import numpy as np
 
@@ -561,3 +562,184 @@ class SmarterAttentionNet(nn.Module):
         final_context, _ = self.apply_attn(h, scores, mask=mask)
 
         return self.prediction_net(final_context)
+    
+
+class Seq2SeqAttention(nn.Module):
+
+    def __init__(self, num_embeddings, embd_size, hidden_size, padding_idx=None, layers=1, max_decode_length=20):
+        super(Seq2SeqAttention, self).__init__()
+        self.padding_idx = padding_idx
+        self.hidden_size = hidden_size
+        self.embd = nn.Embedding(num_embeddings, embd_size, padding_idx=padding_idx)
+        
+        #We set the hidden size to half the intended length, because we will make the 
+        #encoder bi-directional. That means we will get 2 hidden state representations
+        #which we will concatinate together, giving us the desired size!
+        self.encode_layers = nn.GRU(input_size=embd_size, hidden_size=hidden_size//2, 
+                                       num_layers=layers, bidirectional=True)
+        #decoder will be uni-directionall, and we need to use CRUCells so that we can 
+        #do the decoding one step at a time
+        self.decode_layers = nn.ModuleList([nn.GRUCell(embd_size, hidden_size)] + 
+                                     [nn.GRUCell(hidden_size, hidden_size) for i in range(layers-1)])
+        self.score_net = DotScore(hidden_size)
+        #predict_word will be a small fully connected network that we use to convert the 
+        #result of the attention mechanism and the local context into a prediction for 
+        #the next word
+        self.predict_word = nn.Sequential(
+            nn.Linear(2*hidden_size, hidden_size),
+            nn.LeakyReLU(),
+            nn.LayerNorm(hidden_size),
+            nn.Linear(hidden_size, hidden_size),
+            nn.LeakyReLU(),
+            nn.LayerNorm(hidden_size),
+            nn.Linear(hidden_size, num_embeddings)
+        )
+        self.max_decode_length = max_decode_length
+        self.apply_attn = ApplyAttention()
+    
+    def forward(self, input):
+        #Input should be (B, T) or ((B, T), (B, T'))
+        if isinstance(input, tuple):
+            input, target = input
+        else:
+            target = None
+        #What is the batch size?
+        B = input.size(0)
+        #What is the max number of input time steps?
+        T = input.size(1)
+
+        x = self.embd(input) #(B, T, D)
+
+        #grab the device that the model currently resides on
+        #we will need this later 
+        device = x.device
+
+        mask = getMaskByFill(x) 
+
+        #We will use the mask to figure out how long 
+        #each input sequence is
+        seq_lengths = mask.sum(dim=1).view(-1) #shape (B), containing the # of non-zero values
+        #the sequence lengths will be used to create a packed input for the encoder RNN
+        x_packed = pack_padded_sequence(x, seq_lengths.cpu(), batch_first=True, enforce_sorted=False)
+        h_encoded, h_last = self.encode_layers(x_packed)
+        h_encoded, _ = pad_packed_sequence(h_encoded) #(B, T, 2, D//2) , b/c its bidirectional
+        h_encoded = h_encoded.view(B, T, -1) #(B, T, D)
+        #now h_encoded is the result of running the encoder RNN on the input!
+
+
+        #getting the last hidden state is a little trickier
+        #first the output gets reshaped as (num_layers, directions, batch_size, hidden_size)
+        #and then we grab the last index in the first dimension, because we want the 
+        #last layer's output
+        hidden_size = h_encoded.size(2) 
+        h_last = h_last.view(-1, 2, B, hidden_size//2)[-1,:,:,:] #shape is now (2, B, D/2)
+        #now we will reorder to (B, 2, D/2), and flatten the last two dimensions down to (B, D)
+        h_last = h_last.permute(1, 0, 2).reshape(B, -1)
+        
+        
+        #End of Encoding portion. h_encoded now contains the representation of the input data!
+        #h_last has the final ouputs of the RNN, to use as the initial input state for the decoder
+        
+        #The first input to the decoder will be the output of the last encoder step
+        #decoder_input = h_last
+        
+        # new hidden states for decoders
+        h_prevs = [h_last for l in range(len(self.decode_layers))]
+
+        #We will save all the attention mechanism results for visualization later!
+        all_attentions = []
+        all_predictions = []
+
+        #Grab the last item from the input (which should be an EOS marker)
+        #as the first input for the decoder
+        #We could also hard-code the SOS marker instead
+        decoder_input = self.embd(input.gather(1,seq_lengths.view(-1,1)-1).flatten()) #(B, D)
+
+        #How many decoding steps should we do?
+        steps = min(self.max_decode_length, T)
+        #If we are training, the target values tells us exactly
+        #how many steps to take
+        if target is not None: #We know the exact decode length!
+            steps = target.size(1)
+        
+        #Do we use teacher forcing (true) or auto-regressive (false)
+        teacher_forcing = np.random.choice((True,False))
+        for t in range(steps):
+            x_in = decoder_input #(B, D)
+
+            for l in range(len(self.decode_layers)):
+                h_prev = h_prevs[l] 
+                h = self.decode_layers[l](x_in, h_prev)
+
+                h_prevs[l] = h
+                x_in = h
+            h_decoder = x_in #(B, D), we now have the hidden state for the decoder at this time step
+
+            #This is the attention mechanism, lets look at all the previous encoded states and 
+            #see which look relevant
+
+            scores = self.score_net(h_encoded, h_decoder) #(B, T, 1)
+            context, weights = self.apply_attn(h_encoded, scores, mask=mask)
+
+            #save the attention weights for visualization later
+            all_attentions.append( weights.detach() ) #we are detaching the weights because we 
+            #do not want to compute anything with them anymore, we just want to save their 
+            #values to make visualizations
+
+            #Now lets compute the final representation by concatinating the 
+            #attention result and the initial context
+            word_pred = torch.cat((context, h_decoder), dim=1) #(B, D) + (B, D)  -> (B, 2*D)
+            #and get a prediction about what the next token is by pushing it
+            #through a small fully-connected network
+            word_pred = self.predict_word(word_pred) #(B, 2*D) -> (B, V)
+            all_predictions.append(word_pred)
+    
+            #Now we have $\hat{y}_t$! we need to select the input for the next
+            #time step. We use torch.no_grad() because the gradient will 
+            #carry through the hidden states of the RNN, not the input tokens
+            with torch.no_grad():
+                if self.training:
+                    if target is not None and teacher_forcing:
+                        #We have the target and selected teacher forcing, so use the
+                        #correct next answer
+                        next_words = target[:,t].squeeze()
+                    else:
+                        #Sample the next token based on the predictions made
+                        next_words = torch.multinomial(F.softmax(word_pred, dim=1), 1)[:,-1]
+                else:
+                    #we are trying to make an actual prediction, so take the most likely word
+                    #we could improve this by using temperature and sampling like we did 
+                    #for the CharRNN model!
+                    next_words = torch.argmax(word_pred, dim=1)
+            #end of torch.no_grad()
+            
+            #We've decided what the next tokens are, we are back to using
+            #the gradient calculation so that the embedding layer is adjusted
+            #appropriately during training. 
+            decoder_input = self.embd(next_words.to(device))
+    
+        #done decoding!
+        if self.training: #When training, only the predictions are important
+            return torch.stack(all_predictions, dim=1)
+        else:#When evaluatin, we also want to look at the attention weights
+            return torch.stack(all_predictions, dim=1), torch.stack(all_attentions, dim=1).squeeze()
+
+
+def CrossEntLossTime(x, y, word2indx, PAD_token):
+    """
+    x: output with shape (B, T, V)
+    y: labels with shape (B, T')
+    
+    """
+    if isinstance(x, tuple):
+        x, _ = x
+    #We do not want to compute a loss for items that have been padded out!
+    cel = nn.CrossEntropyLoss(ignore_index=word2indx[PAD_token])
+    T = min(x.size(1), y.size(1))
+    
+    loss = 0
+    for t in range(T):
+        loss += cel(x[:,t,:], y[:,t])
+    return loss
+
+

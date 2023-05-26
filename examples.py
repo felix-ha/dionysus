@@ -4,9 +4,10 @@ from torch.utils.data import DataLoader, TensorDataset
 import torchvision
 import torchvision.transforms as transforms
 from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
 
 from training import TrainingConfig, train, cross_entropy_language_model
-from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack
+from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch
 from models import *
 
 import os
@@ -381,6 +382,74 @@ def train_mnist_attention():
 
     print("done")
 
+# Seq2Seq
+
+def plot_heatmap(src, trg, scores):
+    fig, ax = plt.subplots()
+    heatmap = ax.pcolor(scores, cmap='gray')
+
+    ax.set_xticklabels(trg, minor=False, rotation='vertical')
+    ax.set_yticklabels(src, minor=False)
+
+    # put the major ticks at the middle of each cell
+    # and the x-ticks on top
+    ax.xaxis.tick_top()
+    ax.set_xticks(np.arange(scores.shape[1]) + 0.5, minor=False)
+    ax.set_yticks(np.arange(scores.shape[0]) + 0.5, minor=False)
+    ax.invert_yaxis()
+
+    plt.colorbar(heatmap)
+    plt.show()
+
+def results(indx, indx2word, model, test_dataset):
+    eng_x, french_y = test_dataset[indx]
+    eng_str = " ".join([indx2word[i] for i in eng_x.cpu().numpy()])
+    french_str = " ".join([indx2word[i] for i in french_y.cpu().numpy()])
+    print("Input:     ", eng_str)
+    print("Target:    ", french_str)
+
+    model = model.eval().cpu()
+    with torch.no_grad():
+        preds, attention = model(eng_x.unsqueeze(0))
+        p = torch.argmax(preds, dim=2)
+    pred_str = " ".join([indx2word[i] for i in p[0,:].cpu().numpy()])
+    print("Predicted: ", pred_str)
+    plot_heatmap(eng_str.split(" "), pred_str.split(" "), attention.T.cpu().numpy())
+
+def run_seq2seq():
+    SOS_token = "<SOS>" #"START_OF_SENTANCE_TOKEN"
+    EOS_token = "<EOS>" #"END_OF_SENTANCE_TOKEN"
+    PAD_token = "_PADDING_"
+
+    B = 4
+    pkl_file = 'data/eng-fra.pkl'
+    MAX_LEN = 2
+
+    bigdataset = TranslationDataset(pkl_file, MAX_LEN, SOS_token, EOS_token, PAD_token)
+
+    train_size = round(len(bigdataset)*0.9)
+    test_size = len(bigdataset)-train_size
+    train_dataset, test_dataset = torch.utils.data.random_split(bigdataset, [train_size, test_size])
+
+    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda batch: pad_batch(batch, bigdataset.word2indx, PAD_token))
+    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=pad_batch)
+
+    seq2seq = Seq2SeqAttention(len(bigdataset.word2indx), 64, 256, padding_idx=bigdataset.word2indx[PAD_token], layers=3, max_decode_length=MAX_LEN+2)
+    for p in seq2seq.parameters():
+        p.register_hook(lambda grad: torch.clamp(grad, -10, 10))
+
+    train_config = TrainingConfig(model=seq2seq,
+                                epochs=2,
+                                    loss_func=lambda x,y: CrossEntLossTime(x, y,  bigdataset.word2indx, PAD_token),
+                                    training_loader=train_loader,
+                                    save_model=True,
+                                    save_path=os.path.join(os.getcwd(), "runs", "seq2seq"),
+                                    model_name="seq2seq")
+    result = train(train_config)
+
+    print(result)   
+    results(50, bigdataset.indx2word, seq2seq, test_dataset)
+
 
 if __name__ == "__main__": 
-    feadforward_moon()
+    run_seq2seq()
