@@ -35,36 +35,6 @@ def load_raw_eng_fra(pkl_file):
         return pickle.load(file)
 
 
-pkl_file = 'data/eng-fra.pkl'
-MAX_LEN = 2
-
-
-#download_prepare_and_save_eng_fra(pkl_file)
-all_data = load_raw_eng_fra(pkl_file)
-
-short_subset = [] #the subset we will actually use
-for (s, t) in all_data:
-    if max(len(s.split(" ")), len(t.split(" "))) <= MAX_LEN:
-        short_subset.append((s,t))
-print("Using ", len(short_subset), "/", len(all_data))
-
-SOS_token = "<SOS>" #"START_OF_SENTANCE_TOKEN"
-EOS_token = "<EOS>" #"END_OF_SENTANCE_TOKEN"
-PAD_token = "_PADDING_"
-
-
-# Words from the source and target language are thrown in the same vocabulary
-word2indx = {PAD_token:0, SOS_token:1, EOS_token:2}
-for s, t in short_subset:
-    for sentance in (s, t):
-        for word in sentance.split(" "):
-            if word not in word2indx:
-                word2indx[word] = len(word2indx)
-print("Size of Vocab: ", len(word2indx))
-#build the inverted dict for looking at the outputs later
-indx2word = {}
-for word, indx in word2indx.items():
-    indx2word[indx] = word
 
 
 class TranslationDataset(Dataset):
@@ -76,21 +46,52 @@ class TranslationDataset(Dataset):
     Strings in the input and output targets will be broken up by spaces
     """
 
-    def __init__(self, lang_pairs, word2indx):
+    def __init__(self, pkl_file, MAX_LEN, SOS_token, EOS_token, PAD_token):
         """
         lang_pairs: a List[Tuple[String,String]] containing the source,target pairs for a Seq2Seq problem. 
         word2indx: a Map[String,Int] that converts each word in an input string into a unique ID. 
         """
-        self.lang_pairs = lang_pairs
+        try:
+            all_data = load_raw_eng_fra(pkl_file) 
+        except:
+            download_prepare_and_save_eng_fra(pkl_file)
+            all_data = load_raw_eng_fra(pkl_file) 
+
+
+        short_subset = [] #the subset we will actually use
+        for (s, t) in all_data:
+            if max(len(s.split(" ")), len(t.split(" "))) <= MAX_LEN:
+                short_subset.append((s,t))
+        print("Using ", len(short_subset), "/", len(all_data))
+
+        self.SOS_token = SOS_token
+        self.EOS_token = EOS_token 
+        self.PAD_token = PAD_token
+
+        # Words from the source and target language are thrown in the same vocabulary
+        word2indx = {self.PAD_token:0, self.SOS_token:1, self.EOS_token:2}
+        for s, t in short_subset:
+            for sentance in (s, t):
+                for word in sentance.split(" "):
+                    if word not in word2indx:
+                        word2indx[word] = len(word2indx)
+        print("Size of Vocab: ", len(word2indx))
+        #build the inverted dict for looking at the outputs later
+        indx2word = {}
+        for word, indx in word2indx.items():
+            indx2word[indx] = word
+
+        self.lang_pairs = short_subset
         self.word2indx = word2indx
+        self.indx2word = indx2word
 
     def __len__(self):
         return len(self.lang_pairs)
 
     def __getitem__(self, idx):
         x, y = self.lang_pairs[idx]
-        x = SOS_token + " " + x + " " + EOS_token
-        y = y + " " + EOS_token
+        x = self.SOS_token + " " + x + " " + self.EOS_token
+        y = y + " " + self.EOS_token
         
         #convert to lists of integers
         x = [self.word2indx[w] for w in x.split(" ")]
@@ -103,7 +104,7 @@ class TranslationDataset(Dataset):
     
 
 
-def pad_batch(batch):
+def pad_batch(batch, word2indx, PAD_token):
     """
     Pad items in the batch to the length of the longest item in the batch
     """
@@ -287,7 +288,7 @@ class Seq2SeqAttention(nn.Module):
 
 
 
-def CrossEntLossTime(x, y):
+def CrossEntLossTime(x, y, word2indx, PAD_token):
     """
     x: output with shape (B, T, V)
     y: labels with shape (B, T')
@@ -305,27 +306,32 @@ def CrossEntLossTime(x, y):
     return loss
 
 
+SOS_token = "<SOS>" #"START_OF_SENTANCE_TOKEN"
+EOS_token = "<EOS>" #"END_OF_SENTANCE_TOKEN"
+PAD_token = "_PADDING_"
 
 B = 4
+pkl_file = 'data/eng-fra.pkl'
+MAX_LEN = 2
 
-bigdataset = TranslationDataset(short_subset, word2indx)
+bigdataset = TranslationDataset(pkl_file, MAX_LEN, SOS_token, EOS_token, PAD_token)
 
 train_size = round(len(bigdataset)*0.9)
 test_size = len(bigdataset)-train_size
 train_dataset, test_dataset = torch.utils.data.random_split(bigdataset, [train_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=pad_batch)
+train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda batch: pad_batch(batch, bigdataset.word2indx, PAD_token))
 test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=pad_batch)
 
 
 
-seq2seq = Seq2SeqAttention(len(word2indx), 64, 256, padding_idx=word2indx[PAD_token], layers=3, max_decode_length=MAX_LEN+2)
+seq2seq = Seq2SeqAttention(len(bigdataset.word2indx), 64, 256, padding_idx=bigdataset.word2indx[PAD_token], layers=3, max_decode_length=MAX_LEN+2)
 for p in seq2seq.parameters():
     p.register_hook(lambda grad: torch.clamp(grad, -10, 10))
 
 train_config = TrainingConfig(model=seq2seq,
                               epochs=2,
-                                loss_func=CrossEntLossTime,
+                                loss_func=lambda x,y: CrossEntLossTime(x, y,  bigdataset.word2indx, PAD_token),
                                 training_loader=train_loader,
                                 save_model=True,
                                 save_path=os.path.join(os.getcwd(), "runs", "seq2seq"),
@@ -356,7 +362,7 @@ def plot_heatmap(src, trg, scores):
     plt.show()
 
 seq2seq = seq2seq.eval().cpu()
-def results(indx):
+def results(indx, indx2word):
     eng_x, french_y = test_dataset[indx]
     eng_str = " ".join([indx2word[i] for i in eng_x.cpu().numpy()])
     french_str = " ".join([indx2word[i] for i in french_y.cpu().numpy()])
@@ -370,4 +376,4 @@ def results(indx):
     print("Predicted: ", pred_str)
     plot_heatmap(eng_str.split(" "), pred_str.split(" "), attention.T.cpu().numpy())
 
-results(50)
+results(50, bigdataset.indx2word)
