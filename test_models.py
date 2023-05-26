@@ -21,6 +21,20 @@ class TestSanityChecks(unittest.TestCase):
         self.assertTrue(output.shape == (B, T, H))
         self.assertTrue(h_n.shape == (1, B, H))
 
+    def test_GRU(self):
+        B, T, D = 2, 5, 2
+        H = 3
+        x = torch.rand([B, T, D])
+        h_0 = torch.zeros([1, B, H]) # 1 is for number of layers, here 1
+
+        rnn = nn.GRU(D, H, batch_first=True)
+        output, h_n = rnn(x, h_0)
+
+        self.assertTrue(output.shape == (B, T, H))
+        self.assertTrue(h_n.shape == (1, B, H))
+
+
+
 
 
 class TestBigramLanguageModel(unittest.TestCase):

@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 import torchvision
 import torchvision.transforms as transforms
+from sklearn.metrics import accuracy_score
 
 from training import TrainingConfig, train, cross_entropy_language_model
 from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack
@@ -33,8 +34,9 @@ def feadforward_moon():
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    save_model=True,
-                                   save_path=os.path.join(os.getcwd(), "trainings_run"),
-                                   model_name="test")
+                                   save_path=os.path.join(os.getcwd(), "runs", "trainings_run"),
+                                   model_name="test", 
+                                   score_funcs= {'accuracy': accuracy_score})
     results_pd = train(train_config)
 
     print(results_pd)
@@ -274,7 +276,7 @@ def train_baseline():
                                     training_loader=training_loader,
                                     validation_loader=validation_loader,
                                     save_model=True,
-                                    save_path=os.path.join(os.getcwd(), "attention"),
+                                    save_path=os.path.join(os.getcwd(), "runs", "attention"),
                                     model_name="simple")
     result = train(train_config)
 
@@ -336,7 +338,7 @@ def train_simple_attention():
                                   training_loader=training_loader,
                                   validation_loader=validation_loader,
                                   save_model=True,
-                                  save_path=os.path.join(os.getcwd(), "attention"),
+                                  save_path=os.path.join(os.getcwd(), "runs", "attention"),
                                   model_name="simple")
     result = train(train_config)
 
@@ -370,7 +372,7 @@ def train_mnist_attention():
                                   training_loader=training_loader,
                                   validation_loader=validation_loader,
                                   save_model=True,
-                                  save_path=os.path.join(os.getcwd(), "attention"),
+                                  save_path=os.path.join(os.getcwd(), "runs", "attention"),
                                   model_name="simple")
     result = train(train_config)
 
