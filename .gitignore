@@ -1,4 +1,4 @@
 *.pyc
 *.pkl
-*.pth
+*.pt
 *.onnx
