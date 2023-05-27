@@ -39,7 +39,7 @@ class TrainingConfig:
                     
 
 def train(config: TrainingConfig):
-    to_track = ["epoch_time", "training_loss"]
+    to_track = ["epoch", "epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
 
@@ -63,6 +63,7 @@ def train(config: TrainingConfig):
             with torch.no_grad():
                 run_epoch(config, results, prefix="validation")
     
+        results["epoch"].append(epoch+1)
         results["epoch_time"].append(epoch_time)
 
     if config.save_model:

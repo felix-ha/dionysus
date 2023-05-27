@@ -391,9 +391,8 @@ def pad_batch(batch, vocab, tokenizer, padding_idx):
     return x, y
 
 
-def get_ag_news_dataloaders(B):
+def get_ag_news_dataloaders(B, min_freq):
     pkl_file = "data.pkl"
-    min_freq = 10
     unk_token = '<UNK>'
     padding_token = '<PAD>'
     begin_sentence_token = '<BOS>'
@@ -416,7 +415,7 @@ def get_ag_news_dataloaders(B):
             pickle.dump(data, file)
 
     # TODO remove subset 
-    train_dataset = train_dataset[:500]
+    train_dataset = train_dataset[:1500]
     print("WARNING: ONLY A SUBSET OF THE TRAININGSDATA IS USED!!!")
 
     # TODO: Improve tokenzer -> for example remove "."
@@ -434,7 +433,7 @@ def get_ag_news_dataloaders(B):
     test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=lambda x: pad_batch(x, vocabulary, tokenizer, padding_idx))
 
     NUM_CLASS = len(np.unique([z[0] for z in train_dataset])) 
-    return train_loader, test_loader, NUM_CLASS, vocabulary
+    return train_loader, test_loader, NUM_CLASS, vocabulary, padding_idx
 
 
 if __name__ == "__main__":

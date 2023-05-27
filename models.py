@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from dataclasses import dataclass
 import numpy as np
+import math 
 
 
 @dataclass
@@ -743,3 +744,118 @@ def CrossEntLossTime(x, y, word2indx, PAD_token):
     return loss
 
 
+class AttentionAvg(nn.Module):
+
+    def __init__(self, attnScore):
+        super(AttentionAvg, self).__init__()
+        self.score = attnScore
+    
+    def forward(self, states, context, mask=None):
+        """
+        states: (B, T, D) shape
+        context: (B, D) shape
+        output: (B, D), a weighted av
+        
+        """
+        
+        B = states.size(0)
+        T = states.size(1)
+        D = states.size(2)
+        
+        scores = self.score(states, context) #(B, T, 1)
+        
+        if mask is not None:
+            scores[~mask] = float(-10000)
+        weights = F.softmax(scores, dim=1) #(B, T, 1) still, but sum(T) = 1
+        
+        context = (states*weights).sum(dim=1) #(B, T, D) * (B, T, 1) -> (B, D, 1)
+        
+        
+        return context.view(B, D) #Flatten this out to (B, D)
+
+class EmbeddingAttentionBag(nn.Module):
+
+    def __init__(self, vocab_size, D, embd_layers=3, padding_idx=None):
+        super(EmbeddingAttentionBag, self).__init__()
+        self.padding_idx = padding_idx
+        self.embd = nn.Embedding(vocab_size, D, padding_idx=padding_idx)
+        if isinstance(embd_layers, int):
+            self.embd_layers =  nn.Sequential( #(B, T, D) -> (B, T, D) 
+                *[nn.Sequential(nn.Linear(D, D),
+                nn.LeakyReLU()) for _ in range(embd_layers)]
+            )
+        else:
+            self.embd_layers = embd_layers
+        self.attn = AttentionAvg(DotScore(D))# functions defined back in Chapter 10
+    
+    def forward(self, input):
+        """
+        input: (B, T) shape, dtype=int64
+        output: (B, D) shape, dtype=float32
+        """
+        if self.padding_idx is not None:
+            mask = input != self.padding_idx
+        else:
+            mask = input == input #All entries are `True`
+        #mask is shape (B, T)
+        x = self.embd(input) #(B, T, D)
+        x = self.embd_layers(x)#(B, T, D)        
+        #average over time
+        context = x.sum(dim=1)/(mask.sum(dim=1).unsqueeze(1)+1e-5) #(B, T, D) -> (B, D)
+        #If we wanted to just do normal averaging, we could return the context variable right now!
+        return self.attn(x, context, mask=mask) # ((B, T, D), (B, D)) -> (B, D)
+    
+
+#Adapted from from https://github.com/pytorch/examples/blob/0c1654d6913f77f09c0505fb284d977d89c17c1a/word_language_model/model.py#L63
+class PositionalEncoding(nn.Module):
+    r"""Inject some information about the relative or absolute position of the tokens
+        in the sequence. The positional encodings have the same dimension as
+        the embeddings, so that the two can be summed. Here, we use sine and cosine
+        functions of different frequencies.
+    .. math::
+        \text{PosEncoder}(pos, 2i) = sin(pos/10000^(2i/d_model))
+        \text{PosEncoder}(pos, 2i+1) = cos(pos/10000^(2i/d_model))
+        \text{where pos is the word position and i is the embed idx)
+    Args:
+        d_model: the embed dim (required).
+        dropout: the dropout value (default=0.1).
+        max_len: the max. length of the incoming sequence (default=5000).
+    Examples:
+        >>> pos_encoder = PositionalEncoding(d_model)
+    """
+
+    def __init__(self, d_model, dropout=0.1, max_len=5000, batch_first=False):
+        super(PositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        self.d_model = d_model
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+        
+        self.batch_first = batch_first
+
+    def forward(self, x):
+        r"""Inputs of forward function
+        Args:
+            x: the sequence fed to the positional encoder model (required).
+        Shape:
+            x: [sequence length, batch size, embed dim]
+            output: [sequence length, batch size, embed dim]
+        Examples:
+            >>> output = pos_encoder(x)
+        """
+        if self.batch_first: #go from (B, T, D) input shape to (T, B, D)
+            x = x.permute(1, 0, 2)
+
+        x = x *np.sqrt(self.d_model) + self.pe[:x.size(0), :]
+        x = self.dropout(x)
+        
+        if self.batch_first: #now go back to (B, T, D) shape
+            x = x.permute(1, 0, 2)
+            
+        return x

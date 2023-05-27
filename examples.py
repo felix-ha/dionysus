@@ -5,6 +5,8 @@ import torchvision
 import torchvision.transforms as transforms
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
+from dataclasses import replace
+import seaborn as sns
 
 from training import TrainingConfig, train, cross_entropy_language_model
 from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch_seq2seq, get_ag_news_dataloaders
@@ -454,7 +456,8 @@ def run_seq2seq():
 
 def run_RNN_alternative():
     B = 4
-    train_loader, test_loader, NUM_CLASS, vocabulary = get_ag_news_dataloaders(B)
+    min_freq = 1
+    train_loader, test_loader, NUM_CLASS, vocabulary, padding_idx = get_ag_news_dataloaders(B, min_freq)
 
     VOCAB_SIZE = len(vocabulary)
 
@@ -472,9 +475,94 @@ def run_RNN_alternative():
                                   epochs=1,
                                   loss_func=loss_func, 
                                   training_loader=train_loader,
-                                  validation_loader=test_loader)
-    results_pd = train(train_config)  
-    print(results_pd)
+                                  validation_loader=test_loader,
+                                  score_funcs= {'accuracy': accuracy_score})
+    results_rnn = train(train_config)  
+    print(results_rnn)
+
+
+    simpleEmbdAvg = nn.Sequential(
+    nn.Embedding(VOCAB_SIZE, embed_dim, padding_idx=padding_idx), #(B, T) -> (B, T, D) 
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.AdaptiveAvgPool2d((1,embed_dim)), #(B, T, D) -> (B, 1, D)
+    nn.Flatten(), #(B, 1, D) -> (B, D)
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.BatchNorm1d(embed_dim),
+    nn.Linear(embed_dim, NUM_CLASS)
+)
+    
+
+    train_config = replace(train_config, model=simpleEmbdAvg)
+    results_simpleEmbdAvg = train(train_config)  
+    print(results_simpleEmbdAvg)
+
+
+
+    attnEmbd = nn.Sequential(
+    EmbeddingAttentionBag(VOCAB_SIZE, embed_dim, padding_idx=padding_idx), #(B, T) -> (B, D) 
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.BatchNorm1d(embed_dim),
+    nn.Linear(embed_dim, NUM_CLASS)
+    )
+    
+    train_config = replace(train_config, model=attnEmbd)
+    results_attnEmbd = train(train_config)  
+    print(results_attnEmbd)
+
+
+    simplePosEmbdAvg = nn.Sequential(
+    nn.Embedding(VOCAB_SIZE, embed_dim, padding_idx=padding_idx), #(B, T) -> (B, T, D) 
+    PositionalEncoding(embed_dim, batch_first=True),
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.AdaptiveAvgPool2d((1,None)), #(B, T, D) -> (B, 1, D)
+    nn.Flatten(), #(B, 1, D) -> (B, D)
+    nn.Linear(embed_dim, embed_dim),
+    nn.LeakyReLU(),
+    nn.BatchNorm1d(embed_dim),
+    nn.Linear(embed_dim, NUM_CLASS)
+)
+    
+    train_config = replace(train_config, model=simplePosEmbdAvg)
+    results_simplePosEmbdAvg = train(train_config)  
+    print(results_simplePosEmbdAvg)
+
+
+    embd_layers =  nn.Sequential( #(B, T, D) -> (B, T, D) 
+        *([PositionalEncoding(embed_dim, batch_first=True)]+
+        [nn.Sequential(nn.Linear(embed_dim, embed_dim), nn.LeakyReLU()) for _ in range(3)])
+    )
+
+    attnPosEmbd = nn.Sequential(
+        EmbeddingAttentionBag(VOCAB_SIZE, embed_dim, padding_idx=padding_idx, embd_layers=embd_layers), #(B, T) -> (B, D) 
+        nn.Linear(embed_dim, embed_dim),
+        nn.LeakyReLU(),
+        nn.BatchNorm1d(embed_dim),
+        nn.Linear(embed_dim, NUM_CLASS)
+    )
+
+    train_config = replace(train_config, model=attnPosEmbd)
+    results_attnPosEmbd = train(train_config)  
+    print(results_attnPosEmbd)
+
+
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_rnn, label='RNN')
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_simpleEmbdAvg, label='Average Embedding')
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_simplePosEmbdAvg, label='Average Positional Embedding')
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnEmbd, label='Attention Embedding')
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Attention Positional Embedding')
+    plt.show()
 
 if __name__ == "__main__": 
     run_RNN_alternative()
