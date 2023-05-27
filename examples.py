@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 
 from training import TrainingConfig, train, cross_entropy_language_model
-from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch
+from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch_seq2seq, get_ag_news_dataloaders
 from models import *
 
 import os
@@ -431,8 +431,8 @@ def run_seq2seq():
     test_size = len(bigdataset)-train_size
     train_dataset, test_dataset = torch.utils.data.random_split(bigdataset, [train_size, test_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda batch: pad_batch(batch, bigdataset.word2indx, PAD_token))
-    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=pad_batch)
+    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda batch: pad_batch_seq2seq(batch, bigdataset.word2indx, PAD_token))
+    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=pad_batch_seq2seq)
 
     seq2seq = Seq2SeqAttention(len(bigdataset.word2indx), 64, 256, padding_idx=bigdataset.word2indx[PAD_token], layers=3, max_decode_length=MAX_LEN+2)
     for p in seq2seq.parameters():
@@ -450,6 +450,31 @@ def run_seq2seq():
     print(result)   
     results(50, bigdataset.indx2word, seq2seq, test_dataset)
 
+# Network desings alternatives to RNNs
+
+def run_RNN_alternative():
+    B = 4
+    train_loader, test_loader, NUM_CLASS, vocabulary = get_ag_news_dataloaders(B)
+
+    VOCAB_SIZE = len(vocabulary)
+
+    embed_dim = 128
+
+    for x, y in train_loader:
+        break
+    itos = vocabulary.get_itos()
+    print([itos[s] for s in x[0]])
+
+    model = RNN(VOCAB_SIZE, embed_dim, embed_dim, NUM_CLASS)
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model,
+                                  epochs=1,
+                                  loss_func=loss_func, 
+                                  training_loader=train_loader,
+                                  validation_loader=test_loader)
+    results_pd = train(train_config)  
+    print(results_pd)
 
 if __name__ == "__main__": 
-    run_seq2seq()
+    run_RNN_alternative()

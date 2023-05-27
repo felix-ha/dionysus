@@ -66,6 +66,7 @@ def train(config: TrainingConfig):
         results["epoch_time"].append(epoch_time)
 
     if config.save_model:
+        # TODO fix error here_ RuntimeError: Parent directory C:\Users\FelixJobson\Desktop\priv\dl\runs\seq2seq does not exist.
         torch.save(config.model.state_dict(), os.path.join(config.save_path, config.model_name + ".pth"))
         try: 
             torch.onnx.export(config.model, x_sample, os.path.join(config.save_path, config.model_name +  ".onnx"), input_names=["features"], output_names=["logits"])

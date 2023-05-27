@@ -11,6 +11,11 @@ import pickle
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
+from torchtext.datasets import AG_NEWS
+from torchtext.data.utils import get_tokenizer
+from collections import Counter 
+from torchtext.vocab import vocab 
+
 import numpy as np
 
 
@@ -342,7 +347,7 @@ class TranslationDataset(Dataset):
         return x, y
     
 
-def pad_batch(batch, word2indx, PAD_token):
+def pad_batch_seq2seq(batch, word2indx, PAD_token):
     """
     Pad items in the batch to the length of the longest item in the batch
     """
@@ -363,10 +368,74 @@ def pad_batch(batch, word2indx, PAD_token):
     return (X, Y), Y
 
 
+def text_transform(x, vocab, tokenizer): #string -> list of integers
+    return [vocab['<BOS>']] + [vocab[token] for token in tokenizer(x)] + [vocab['<EOS>']] #vocab acts like a dictionary, handls unkown tokens for us, and we can make it pre and post-pend with the start and end markers respectively.
+
+def label_transform(x): 
+    return x-1 #labes are originally [1, 2, 3, 4] but we need them as [0, 1, 2, 3] 
+
+def pad_batch(batch, vocab, tokenizer, padding_idx):
+    """
+    Pad items in the batch to the length of the longest item in the batch. 
+    Also, re-order so that the values are returned (input, label)
+    """
+    labels = [label_transform(z[0]) for z in batch] #get and transform every label in the batch
+    texts = [torch.tensor(text_transform(z[1], vocab, tokenizer), dtype=torch.int64) for z in batch] #get, tokenizer, and put into a tensor every text
+    #what is the longest sequence in this batch? 
+    max_len = max([text.size(0) for text in texts])
+    #pad each text tensor by whatever amount gets it to the max_len
+    texts = [F.pad(text, (0,max_len-text.size(0)), value=padding_idx) for text in texts]
+    #make x and y a single tensor
+    x, y = torch.stack(texts), torch.tensor(labels, dtype=torch.int64)
+    
+    return x, y
+
+
+def get_ag_news_dataloaders(B):
+    pkl_file = "data.pkl"
+    min_freq = 10
+    unk_token = '<UNK>'
+    padding_token = '<PAD>'
+    begin_sentence_token = '<BOS>'
+    end_sentence_token  = '<EOS>'
+    special_tokens=(unk_token, begin_sentence_token, end_sentence_token, padding_token)
+
+    try:
+        with open(pkl_file, 'rb') as file:
+            data = pickle.load(file)
+            train_dataset = data['train_dataset']
+            test_dataset = data['test_dataset']
+    except:
+        # TODO: write raw data into tempdirectory
+        train_iter, test_iter = AG_NEWS(root='./data', split=('train', 'test'))
+        train_dataset = list(train_iter)
+        test_dataset = list(test_iter)
+
+        data = {'train_dataset': train_dataset, 'test_dataset': test_dataset}
+        with open(pkl_file, 'wb') as file:
+            pickle.dump(data, file)
+
+    # TODO remove subset 
+    train_dataset = train_dataset[:500]
+    print("WARNING: ONLY A SUBSET OF THE TRAININGSDATA IS USED!!!")
+
+    # TODO: Improve tokenzer -> for example remove "."
+    tokenizer = get_tokenizer('basic_english')
+    counter = Counter() 
+    for (label, line) in train_dataset: #loop through the training data 
+        counter.update(tokenizer(line)) #count the number of unique tokens we see and how often we see them (e.g., we will see "the" a lot, but "sasquatch" maybe once or not at all.)
+    vocabulary = vocab(counter, min_freq=min_freq, specials=special_tokens) #create a vocab object, removing any word that didn't occur at least 10 times, and add special vocab items for unkown, begining of sentance, end of sentance, and "padding"
+    vocabulary.set_default_index(vocabulary[unk_token])
+
+    text = text_transform(f"{unk_token} this is new halloasdf", vocabulary, tokenizer)
+    # assert text == [1, 0, 678, 165, 92, 0, 2]
+    padding_idx = vocabulary[padding_token]
+    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda x: pad_batch(x, vocabulary, tokenizer, padding_idx))
+    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=lambda x: pad_batch(x, vocabulary, tokenizer, padding_idx))
+
+    NUM_CLASS = len(np.unique([z[0] for z in train_dataset])) 
+    return train_loader, test_loader, NUM_CLASS, vocabulary
+
+
 if __name__ == "__main__":
-
-    dataset = LanguageModelDataset('data/text.txt', block_size=10)
-    dataloader = DataLoader(dataset, batch_size=1)
-
-    for x, y in dataloader:
-        print(f"{x}, {y}")
+    pass
