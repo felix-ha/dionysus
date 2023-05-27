@@ -1,6 +1,8 @@
 import time
 from tqdm import tqdm
 import os
+from pathlib import Path
+import datetime
 
 import numpy as np
 import pandas as pd
@@ -31,10 +33,10 @@ class TrainingConfig:
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
 
         if self.save_model:
-            if not os.path.exists(self.save_path):
-                os.mkdir(self.save_path)
-        
-
+            current_time = datetime.datetime.now()
+            timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+            Path(f"{self.save_path}_{timestamp}").mkdir(parents=True, exist_ok=False)
+                    
 
 def train(config: TrainingConfig):
     to_track = ["epoch_time", "training_loss"]
