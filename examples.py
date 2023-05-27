@@ -37,8 +37,8 @@ def feadforward_moon():
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    save_model=True,
-                                   save_path=os.path.join(os.getcwd(), "runs", "trainings_run"),
-                                   model_name="test", 
+                                   save_path=os.path.join(os.getcwd(), "runs"),
+                                   model_name="ffw_moon", 
                                    score_funcs= {'accuracy': accuracy_score})
     results_pd = train(train_config)
 
@@ -279,8 +279,8 @@ def train_baseline():
                                     training_loader=training_loader,
                                     validation_loader=validation_loader,
                                     save_model=True,
-                                    save_path=os.path.join(os.getcwd(), "runs", "attention"),
-                                    model_name="simple")
+                                    save_path=os.path.join(os.getcwd(), "runs"),
+                                    model_name="attention_baseline")
     result = train(train_config)
 
 
@@ -341,8 +341,8 @@ def train_simple_attention():
                                   training_loader=training_loader,
                                   validation_loader=validation_loader,
                                   save_model=True,
-                                  save_path=os.path.join(os.getcwd(), "runs", "attention"),
-                                  model_name="simple")
+                                  save_path=os.path.join(os.getcwd(), "runs"),
+                                  model_name="attention_simple")
     result = train(train_config)
 
 
@@ -375,8 +375,8 @@ def train_mnist_attention():
                                   training_loader=training_loader,
                                   validation_loader=validation_loader,
                                   save_model=True,
-                                  save_path=os.path.join(os.getcwd(), "runs", "attention"),
-                                  model_name="simple")
+                                  save_path=os.path.join(os.getcwd(), "runs"),
+                                  model_name="attention_smarter")
     result = train(train_config)
 
     print(result)
@@ -445,7 +445,7 @@ def run_seq2seq():
                                     loss_func=lambda x,y: CrossEntLossTime(x, y,  bigdataset.word2indx, PAD_token),
                                     training_loader=train_loader,
                                     save_model=True,
-                                    save_path=os.path.join(os.getcwd(), "runs", "seq2seq"),
+                                    save_path=os.path.join(os.getcwd(), "runs"),
                                     model_name="seq2seq")
     result = train(train_config)
 
@@ -476,7 +476,10 @@ def run_RNN_alternative():
                                   loss_func=loss_func, 
                                   training_loader=train_loader,
                                   validation_loader=test_loader,
-                                  score_funcs= {'accuracy': accuracy_score})
+                                  score_funcs= {'accuracy': accuracy_score},
+                                  save_model=True,
+                                  save_path=os.path.join(os.getcwd(), "runs"),
+                                  model_name="ag_news_RNN")
     results_rnn = train(train_config)  
     print(results_rnn)
 
@@ -498,7 +501,7 @@ def run_RNN_alternative():
 )
     
 
-    train_config = replace(train_config, model=simpleEmbdAvg)
+    train_config = replace(train_config, model=simpleEmbdAvg, model_name="ag_news_simpleEmbdAvg")
     results_simpleEmbdAvg = train(train_config)  
     print(results_simpleEmbdAvg)
 
@@ -512,7 +515,7 @@ def run_RNN_alternative():
     nn.Linear(embed_dim, NUM_CLASS)
     )
     
-    train_config = replace(train_config, model=attnEmbd)
+    train_config = replace(train_config, model=attnEmbd, model_name="ag_news_attnEmbd")
     results_attnEmbd = train(train_config)  
     print(results_attnEmbd)
 
@@ -534,7 +537,7 @@ def run_RNN_alternative():
     nn.Linear(embed_dim, NUM_CLASS)
 )
     
-    train_config = replace(train_config, model=simplePosEmbdAvg)
+    train_config = replace(train_config, model=simplePosEmbdAvg, model_name="ag_news_simplePosEmbdAvg")
     results_simplePosEmbdAvg = train(train_config)  
     print(results_simplePosEmbdAvg)
 
@@ -552,7 +555,7 @@ def run_RNN_alternative():
         nn.Linear(embed_dim, NUM_CLASS)
     )
 
-    train_config = replace(train_config, model=attnPosEmbd)
+    train_config = replace(train_config, model=attnPosEmbd, model_name="ag_news_attnPosEmbd")
     results_attnPosEmbd = train(train_config)  
     print(results_attnPosEmbd)
 

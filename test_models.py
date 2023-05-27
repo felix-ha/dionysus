@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from training import TrainingConfig, train
-
+from constants import CHECKPOINT_FILE
 
 class TestSanityChecks(unittest.TestCase):
     def test_RNN(self):
@@ -284,6 +284,7 @@ class TestBigramLanguageModel(unittest.TestCase):
         training_loader = DataLoader(train_dataset, shuffle=True)
         validation_loader = DataLoader(validation_dataset)
 
+        device = "cpu"
         in_features = 2
         out_features = 2
         model = nn.Linear(in_features, out_features)
@@ -303,7 +304,10 @@ class TestBigramLanguageModel(unittest.TestCase):
             A_saved = model.weight.data
 
             model_loaded = nn.Linear(in_features, out_features)
-            model_loaded.load_state_dict(torch.load(os.path.join(train_config.save_path, train_config.model_name + ".pth")))
+
+            checkpoint_dict = torch.load(os.path.join(train_config.save_path_final, CHECKPOINT_FILE), map_location=device)
+            model_loaded.load_state_dict(checkpoint_dict['model_state_dict'])
+
             y_loaded = model_loaded(x)
             A_loaded = model_loaded.weight.data
                 

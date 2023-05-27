@@ -12,6 +12,8 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from dataclasses import dataclass
 from models import moveTo
+from constants import CHECKPOINT_FILE
+
 
 @dataclass
 class TrainingConfig:
@@ -35,7 +37,9 @@ class TrainingConfig:
         if self.save_model:
             current_time = datetime.datetime.now()
             timestamp = current_time.strftime("%Y%m%d_%H%M%S")
-            Path(f"{self.save_path}_{timestamp}").mkdir(parents=True, exist_ok=False)
+            # TODO fix naming or general handling of saving
+            self.save_path_final = Path(self.save_path).joinpath(f"{timestamp}_{self.model_name}")
+            self.save_path_final.mkdir(parents=True, exist_ok=False)
                     
 
 def train(config: TrainingConfig):
@@ -68,9 +72,16 @@ def train(config: TrainingConfig):
 
     if config.save_model:
         # TODO fix error here_ RuntimeError: Parent directory C:\Users\FelixJobson\Desktop\priv\dl\runs\seq2seq does not exist.
-        torch.save(config.model.state_dict(), os.path.join(config.save_path, config.model_name + ".pth"))
+        # TODO move name of keys to constants
+        torch.save({
+        'epoch': epoch,
+        'model_state_dict': config.model.state_dict(),
+        'optimizer_state_dict': config.optimizer.state_dict(),
+        'results' : results
+        }, os.path.join(config.save_path_final, CHECKPOINT_FILE))
+
         try: 
-            torch.onnx.export(config.model, x_sample, os.path.join(config.save_path, config.model_name +  ".onnx"), input_names=["features"], output_names=["logits"])
+            torch.onnx.export(config.model, x_sample, os.path.join(config.save_path_final, "model.onnx"), input_names=["features"], output_names=["logits"])
         except:
             print("saving onnx model failed")
 
