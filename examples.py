@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from dataclasses import replace
 import seaborn as sns
 
-from training import TrainingConfig, train, cross_entropy_language_model
-from data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch_seq2seq, get_ag_news_dataloaders
-from models import *
+from dl.training import TrainingConfig, train, cross_entropy_language_model
+from dl.data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch_seq2seq, get_ag_news_dataloaders
+from dl.models import *
 
 import os
 

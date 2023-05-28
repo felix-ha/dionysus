@@ -2,7 +2,12 @@
 import unittest
 import torch
 import torch.nn as nn
-from models import Config, GPT1
+
+import os
+import sys
+
+sys.path.insert(0, os.getcwd())
+from dl.models import Config, GPT1
 
 
 class TestGPT(unittest.TestCase):
