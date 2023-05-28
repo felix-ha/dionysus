@@ -16,6 +16,7 @@ import os
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+
 def feadforward_moon():
     from sklearn.datasets import make_moons
 
@@ -45,45 +46,8 @@ def feadforward_moon():
 
     print(results_pd)
 
-def run_RNN():
-    dataset = LanguageNameDataset()
 
-    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
-    data_loader_training = DataLoader(train_data, batch_size=1, shuffle=True)
-    data_loader_validation = DataLoader(test_data, batch_size=1, shuffle=False)
-
-    dim_embeddings = 2 #64
-    vocab_size = dataset.vocab_size
-    hidden_nodes = 2 #256
-    n_classes = len(dataset.label_names)
-
-    model = RNN(vocab_size, dim_embeddings, hidden_nodes, n_classes)
-
-    loss_func = nn.CrossEntropyLoss()
-
-    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)  
-    print(results_pd)
-
-def run_RNN_packed():
-    dataset = LanguageNameDataset()
-
-    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
-    data_loader_training = DataLoader(train_data, batch_size=16, shuffle=True, collate_fn=pad_and_pack)
-    data_loader_validation = DataLoader(test_data, batch_size=16, shuffle=False, collate_fn=pad_and_pack)
-
-    dim_embeddings = 2 #64
-    vocab_size = dataset.vocab_size
-    hidden_nodes = 2 #256
-    n_classes = len(dataset.label_names)
-
-    model = RNNPacked(vocab_size, dim_embeddings, hidden_nodes, n_classes)
-
-    loss_func = nn.CrossEntropyLoss()
-
-    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)  
-    print(results_pd)
+# Karparthy
 
 def bigram():
     corpus_file_training = 'data/small/training.txt'
@@ -239,7 +203,51 @@ def run_GPT2():
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
     print(created_text)
 
-# MNIST ATTENTION
+
+# 4. RNNs
+
+def run_RNN():
+    dataset = LanguageNameDataset()
+
+    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    data_loader_training = DataLoader(train_data, batch_size=1, shuffle=True)
+    data_loader_validation = DataLoader(test_data, batch_size=1, shuffle=False)
+
+    dim_embeddings = 2 #64
+    vocab_size = dataset.vocab_size
+    hidden_nodes = 2 #256
+    n_classes = len(dataset.label_names)
+
+    model = RNN(vocab_size, dim_embeddings, hidden_nodes, n_classes)
+
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)  
+    print(results_pd)
+
+def run_RNN_packed():
+    dataset = LanguageNameDataset()
+
+    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    data_loader_training = DataLoader(train_data, batch_size=16, shuffle=True, collate_fn=pad_and_pack)
+    data_loader_validation = DataLoader(test_data, batch_size=16, shuffle=False, collate_fn=pad_and_pack)
+
+    dim_embeddings = 2 #64
+    vocab_size = dataset.vocab_size
+    hidden_nodes = 2 #256
+    n_classes = len(dataset.label_names)
+
+    model = RNNPacked(vocab_size, dim_embeddings, hidden_nodes, n_classes)
+
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
+    results_pd = train(train_config)  
+    print(results_pd)
+
+
+# 10. Attention mechanisms
 
 def train_baseline(): 
     try: 
@@ -385,7 +393,8 @@ def train_mnist_attention():
 
     print("done")
 
-# Seq2Seq
+
+# 11. Sequence-to-sequence
 
 def plot_heatmap(src, trg, scores):
     fig, ax = plt.subplots()
@@ -452,6 +461,7 @@ def run_seq2seq():
 
     print(result)   
     results(50, bigdataset.indx2word, seq2seq, test_dataset)
+
 
 # Network desings alternatives to RNNs
 
@@ -576,6 +586,7 @@ def run_RNN_alternative():
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Attention Positional Embedding')
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Transformer')
     plt.show()
+
 
 if __name__ == "__main__": 
     run_RNN_alternative()
