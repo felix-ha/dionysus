@@ -14,7 +14,6 @@ from dl.models import *
 
 import os
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 
 def feadforward_moon():
@@ -26,8 +25,8 @@ def feadforward_moon():
                                 torch.tensor(y_train, dtype=torch.long))
     validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
                                         torch.tensor(y_validation, dtype=torch.long))
-    training_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=2,)
+    training_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=32)
 
     in_features = 2
     out_features = 2
@@ -35,17 +34,20 @@ def feadforward_moon():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model,
+                                  epochs=220,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    save_model=True,
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="ffw_moon", 
-                                   score_funcs= {'accuracy': accuracy_score})
-    results_pd = train(train_config)
+                                   score_funcs= {'accuracy': accuracy_score}, 
+                                   progress_bar=False)
+    
+    logging.info(f"start training of model: {train_config.model_name}")
+    train(train_config)
 
-    print(results_pd)
-
+    
 
 # Karparthy
 
@@ -115,8 +117,8 @@ def run_simpleGPT():
 
     loss_func = cross_entropy_language_model
     train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)     
-    print(results_pd)
+    train(train_config)     
+
 
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=block_size*2, block_size=block_size)[0].tolist())
@@ -155,8 +157,7 @@ def run_GPT1():
 
     loss_func = cross_entropy_language_model
     train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)     
-    print(results_pd)
+    train(train_config)     
 
     context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
@@ -196,8 +197,7 @@ def run_GPT2():
 
     loss_func = cross_entropy_language_model
     train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)     
-    print(results_pd)
+    train(train_config)     
 
     context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
     created_text = dataset_training.decoder(generate(m, context, max_new_tokens=config.dim_context*2, block_size=config.dim_context)[0].tolist())
@@ -223,8 +223,8 @@ def run_RNN():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)  
-    print(results_pd)
+    train(train_config)  
+
 
 def run_RNN_packed():
     dataset = LanguageNameDataset()
@@ -243,8 +243,8 @@ def run_RNN_packed():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model, loss_func=loss_func, training_loader=data_loader_training, validation_loader=data_loader_validation)
-    results_pd = train(train_config)  
-    print(results_pd)
+    train(train_config)  
+    
 
 
 # 10. Attention mechanisms
@@ -290,10 +290,8 @@ def train_baseline():
                                     save_model=True,
                                     save_path=os.path.join(os.getcwd(), "runs"),
                                     model_name="attention_baseline")
-    result = train(train_config)
+    train(train_config)
 
-
-    print("done")
 
 def train_simple_attention():
     try: 
@@ -352,10 +350,8 @@ def train_simple_attention():
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="attention_simple")
-    result = train(train_config)
+    train(train_config)
 
-
-    print("done")
 
 def train_mnist_attention():
     try: 
@@ -386,12 +382,7 @@ def train_mnist_attention():
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="attention_smarter")
-    result = train(train_config)
-
-    print(result)
-
-
-    print("done")
+    train(train_config)
 
 
 # 11. Sequence-to-sequence
@@ -457,9 +448,8 @@ def run_seq2seq():
                                     save_model=True,
                                     save_path=os.path.join(os.getcwd(), "runs"),
                                     model_name="seq2seq")
-    result = train(train_config)
-
-    print(result)   
+    train(train_config)
+  
     results(50, bigdataset.indx2word, seq2seq, test_dataset)
 
 
@@ -491,8 +481,8 @@ def run_RNN_alternative():
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="ag_news_RNN")
-    results_rnn = train(train_config)  
-    print(results_rnn)
+    train(train_config)  
+
 
 
     simpleEmbdAvg = nn.Sequential(
@@ -513,9 +503,7 @@ def run_RNN_alternative():
     
 
     train_config = replace(train_config, model=simpleEmbdAvg, model_name="ag_news_simpleEmbdAvg")
-    results_simpleEmbdAvg = train(train_config)  
-    print(results_simpleEmbdAvg)
-
+    train(train_config)  
 
 
     attnEmbd = nn.Sequential(
@@ -527,8 +515,7 @@ def run_RNN_alternative():
     )
     
     train_config = replace(train_config, model=attnEmbd, model_name="ag_news_attnEmbd")
-    results_attnEmbd = train(train_config)  
-    print(results_attnEmbd)
+    train(train_config)  
 
 
     simplePosEmbdAvg = nn.Sequential(
@@ -549,8 +536,8 @@ def run_RNN_alternative():
 )
     
     train_config = replace(train_config, model=simplePosEmbdAvg, model_name="ag_news_simplePosEmbdAvg")
-    results_simplePosEmbdAvg = train(train_config)  
-    print(results_simplePosEmbdAvg)
+    train(train_config)  
+
 
 
     embd_layers =  nn.Sequential( #(B, T, D) -> (B, T, D) 
@@ -567,26 +554,24 @@ def run_RNN_alternative():
     )
 
     train_config = replace(train_config, model=attnPosEmbd, model_name="ag_news_attnPosEmbd")
-    results_attnPosEmbd = train(train_config)  
-    print(results_attnPosEmbd)
+    train(train_config)  
+
 
 
     transformer = SimpleTransformerClassifier(VOCAB_SIZE, embed_dim, NUM_CLASS, padding_idx)
     train_config = replace(train_config, model=transformer, model_name="ag_news_transformer")
-    results_transformer = train(train_config)  
-    print(results_transformer)
+    train(train_config)  
 
+    # TODO: Load results from file
 
-
-
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_rnn, label='RNN')
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_simpleEmbdAvg, label='Average Embedding')
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_simplePosEmbdAvg, label='Average Positional Embedding')
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnEmbd, label='Attention Embedding')
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Attention Positional Embedding')
-    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Transformer')
-    plt.show()
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_rnn, label='RNN')
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_simpleEmbdAvg, label='Average Embedding')
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_simplePosEmbdAvg, label='Average Positional Embedding')
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnEmbd, label='Attention Embedding')
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Attention Positional Embedding')
+    # sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Transformer')
+    # plt.show()
 
 
 if __name__ == "__main__": 
-    run_RNN_alternative()
+    feadforward_moon()

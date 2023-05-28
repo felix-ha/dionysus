@@ -30,6 +30,8 @@ class TrainingConfig:
     save_path: str = None
     model_name: str = None
     score_funcs: dict = None
+    progress_bar: bool = True
+    checkpoint_epochs: list[int] = None
 
     def __post_init__(self):
         if self.optimizer == "SGD": 
@@ -41,6 +43,15 @@ class TrainingConfig:
             # TODO fix naming or general handling of saving
             self.save_path_final = Path(self.save_path).joinpath(f"{timestamp}_{self.model_name}")
             self.save_path_final.mkdir(parents=True, exist_ok=False)
+            handlers = [logging.FileHandler(os.path.join(self.save_path_final, constants.LOG_FILE), mode='w'), logging.StreamHandler()]
+        else: 
+            handlers =  [logging.StreamHandler()]
+
+        logging.basicConfig(
+            format='%(asctime)s - %(message)s',
+            level=logging.INFO,
+            handlers=handlers
+            )
 
         if self.device == "gpu" or self.device == torch.device("cuda:0"):
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -51,9 +62,35 @@ class TrainingConfig:
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
 
-                    
+
+def save_checkpoint(epoch, config, results, x_sample):
+    subdirectory = "last" if epoch == "last" else f"epoch_{epoch}"
+    save_path = Path(config.save_path_final).joinpath(subdirectory)
+    save_path.mkdir(parents=True, exist_ok=False)
+
+    results_pd = pd.DataFrame.from_dict(results)  
+
+    # TODO move name of keys to constants
+    torch.save({
+    'epoch': epoch,
+    'model_state_dict': config.model.state_dict(),
+    'optimizer_state_dict': config.optimizer.state_dict(),
+    'results' : results_pd 
+    }, os.path.join(save_path, constants.CHECKPOINT_FILE))
+    logging.info("saved result dict")
+
+    try: 
+        torch.onnx.export(config.model, x_sample, os.path.join(save_path, "model.onnx"), input_names=["features"], output_names=["logits"])
+        logging.info("saved onnx model")
+    except:
+        logging.warn("saving onnx model failed")      
+
+    if epoch == "last":
+        logging.info(f"results:\n{results_pd}")          
+
 
 def train(config: TrainingConfig):
+    logging.info("starting training")
     to_track = ["epoch", "epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
@@ -68,37 +105,32 @@ def train(config: TrainingConfig):
     for item in to_track:
         results[item] = []
 
+    time_training = 0
     config.model.to(config.device)
-    for epoch in tqdm(range(config.epochs), desc="Epoch"):
+    for epoch in tqdm(range(config.epochs), desc="epoch", disable = not config.progress_bar):
         config.model = config.model.train()
-        epoch_time, x_sample = run_epoch(config, results, prefix="training")
+        epoch_time, x_sample = run_epoch(config, results, epoch, prefix="training")
+        time_training += epoch_time
 
         if config.validation_loader is not None:
             config.model = config.model.eval()
             with torch.no_grad():
-                run_epoch(config, results, prefix="validation")
+                run_epoch(config, results, epoch, prefix="validation")
     
         results["epoch"].append(epoch+1)
         results["epoch_time"].append(epoch_time)
 
+        if config.checkpoint_epochs is not None and epoch in config.checkpoint_epochs:
+            save_checkpoint(epoch, config, results, x_sample)
+
+    logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
+
     if config.save_model:
-        # TODO fix error here_ RuntimeError: Parent directory C:\Users\FelixJobson\Desktop\priv\dl\runs\seq2seq does not exist.
-        # TODO move name of keys to constants
-        torch.save({
-        'epoch': epoch,
-        'model_state_dict': config.model.state_dict(),
-        'optimizer_state_dict': config.optimizer.state_dict(),
-        'results' : results
-        }, os.path.join(config.save_path_final, constants.CHECKPOINT_FILE))
+        save_checkpoint("last", config, results, x_sample)
 
-        try: 
-            torch.onnx.export(config.model, x_sample, os.path.join(config.save_path_final, "model.onnx"), input_names=["features"], output_names=["logits"])
-        except:
-            print("saving onnx model failed")
 
-    return pd.DataFrame.from_dict(results)  
-
-def run_epoch(config: TrainingConfig, results: dict, prefix=""):
+def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
+    # TODO move strings to config
     if prefix == "training":
         data_loader = config.training_loader
     if prefix == "validation":
@@ -107,7 +139,7 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
     y_true = []
     y_pred = []
     start = time.time()
-    for x, y in data_loader:         
+    for x, y in tqdm(data_loader, desc="batch", leave=False, disable = not config.progress_bar):      
         x = models.moveTo(x, config.device)
         y = models.moveTo(y, config.device)
 
@@ -144,7 +176,11 @@ def run_epoch(config: TrainingConfig, results: dict, prefix=""):
                 results[prefix + "_" + name].append(float("NaN"))
 
     results[prefix + "_loss"].append(np.mean(running_loss))
-    return end-start, x
+    time_elapsed = end-start
+    if not config.progress_bar:
+        if prefix == "training":
+            logging.info(f"finished epoch {epoch}, took {(time_elapsed / 60 ):.3f} minutes")
+    return time_elapsed, x
 
 def cross_entropy_language_model(logits, targets):
     """

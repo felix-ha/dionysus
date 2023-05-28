@@ -311,7 +311,7 @@ class TestBigramLanguageModel(unittest.TestCase):
 
             model_loaded = nn.Linear(in_features, out_features)
 
-            checkpoint_dict = torch.load(os.path.join(train_config.save_path_final, CHECKPOINT_FILE), map_location=device)
+            checkpoint_dict = torch.load(os.path.join(train_config.save_path_final, "last", CHECKPOINT_FILE), map_location=device)
             model_loaded.load_state_dict(checkpoint_dict['model_state_dict'])
 
             y_loaded = model_loaded(x)
