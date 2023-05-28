@@ -859,3 +859,38 @@ class PositionalEncoding(nn.Module):
             x = x.permute(1, 0, 2)
             
         return x
+    
+
+class SimpleTransformerClassifier(nn.Module):
+
+    def __init__(self, vocab_size, D, NUM_CLASS, padding_idx=None):
+        super(SimpleTransformerClassifier, self).__init__()
+        self.padding_idx = padding_idx
+        self.embd = nn.Embedding(vocab_size, D, padding_idx=padding_idx)
+        self.position = PositionalEncoding(D, batch_first=True)
+        #This below line is the main work for our transformer implementation!
+        self.transformer = nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=D, nhead=8),num_layers=3)
+        self.attn = AttentionAvg(AdditiveAttentionScore(D))
+        self.pred = nn.Sequential(
+            nn.Flatten(), #(B, 1, D) -> (B, D)
+            nn.Linear(D, D),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(D),
+            nn.Linear(D, NUM_CLASS)
+        )
+    
+    def forward(self, input):
+        if self.padding_idx is not None:
+            mask = input != self.padding_idx
+        else:
+            mask = input == input #All entries are `True`
+        x = self.embd(input) #(B, T, D)
+        x = self.position(x) #(B, T, D)
+        #Because the resut of our code is (B, T, D), but transformers 
+        #take input as (T, B, D), we will have to permute the order 
+        #of the dimensions before and after 
+        x = self.transformer(x.permute(1,0,2)) #(T, B, D)
+        x = x.permute(1,0,2) #(B, T, D)
+        #average over time
+        context = x.sum(dim=1)/mask.sum(dim=1).unsqueeze(1)
+        return self.pred(self.attn(x, context, mask=mask))

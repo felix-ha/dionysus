@@ -560,11 +560,20 @@ def run_RNN_alternative():
     print(results_attnPosEmbd)
 
 
+    transformer = SimpleTransformerClassifier(VOCAB_SIZE, embed_dim, NUM_CLASS, padding_idx)
+    train_config = replace(train_config, model=transformer, model_name="ag_news_transformer")
+    results_transformer = train(train_config)  
+    print(results_transformer)
+
+
+
+
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_rnn, label='RNN')
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_simpleEmbdAvg, label='Average Embedding')
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_simplePosEmbdAvg, label='Average Positional Embedding')
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnEmbd, label='Attention Embedding')
     sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Attention Positional Embedding')
+    sns.lineplot(x='epoch', y='validation_accuracy', data=results_attnPosEmbd, label='Transformer')
     plt.show()
 
 if __name__ == "__main__": 

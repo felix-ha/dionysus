@@ -415,7 +415,7 @@ def get_ag_news_dataloaders(B, min_freq):
             pickle.dump(data, file)
 
     # TODO remove subset 
-    train_dataset = train_dataset[:1500]
+    train_dataset = train_dataset[:500]
     print("WARNING: ONLY A SUBSET OF THE TRAININGSDATA IS USED!!!")
 
     # TODO: Improve tokenzer -> for example remove "."
