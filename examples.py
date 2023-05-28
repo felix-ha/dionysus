@@ -13,7 +13,8 @@ from dl.data import LanguageModelDataset, LanguageNameDataset, LargestDigit, Lar
 from dl.models import *
 
 import os
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 def feadforward_moon():
     from sklearn.datasets import make_moons

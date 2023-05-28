@@ -5,6 +5,7 @@ from tqdm.autonotebook import tqdm
 import os
 from pathlib import Path
 import datetime
+import logging
 
 import numpy as np
 import pandas as pd
@@ -24,7 +25,7 @@ class TrainingConfig:
     lr: float = 0.001
     optimizer: str = "SGD"
     epochs: int = 2
-    device: str = torch.device("cpu")
+    device: str = "cpu"
     save_model: bool = False
     save_path: str = None
     model_name: str = None
@@ -40,6 +41,16 @@ class TrainingConfig:
             # TODO fix naming or general handling of saving
             self.save_path_final = Path(self.save_path).joinpath(f"{timestamp}_{self.model_name}")
             self.save_path_final.mkdir(parents=True, exist_ok=False)
+
+        if self.device == "gpu" or self.device == torch.device("cuda:0"):
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            logging.info(f"using device {self.device}")
+        elif self.device == "cpu" or torch.device("cpu"):
+            self.device = torch.device("cpu")
+            logging.info(f"using device {self.device}")
+        else:
+            logging.info(f"device {self.device} is not available, using cpu instead")
+
                     
 
 def train(config: TrainingConfig):
