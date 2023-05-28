@@ -1,3 +1,5 @@
+"""Based on: Inside Deep Learning"""
+
 import time
 from tqdm.autonotebook import tqdm
 import os

@@ -19,114 +19,9 @@ class Config:
     device: str = 'cpu'
 
 
-def moveTo(obj, device):
-    """
-    obj: the python object to move to a device, or to move its contents to a device
-    device: the compute device to move objects to
-    """
-    if hasattr(obj, "to"):
-        return obj.to(device)
-    elif isinstance(obj, list):
-        return [moveTo(x, device) for x in obj]
-    elif isinstance(obj, tuple):
-        return tuple(moveTo(list(obj), device))
-    elif isinstance(obj, set):
-        return set(moveTo(list(obj), device))
-    elif isinstance(obj, dict):
-        to_ret = dict()
-        for key, value in obj.items():
-            to_ret[moveTo(key, device)] = moveTo(value, device)
-        return to_ret
-    else:
-        return obj
-
-
-class RNN(nn.Module):
-    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
-        super().__init__()
-        self.rnn = nn.Sequential(
-                nn.Embedding(vocab_size, dim_embeddings), #(B, T) -> (B, T, D)
-                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
-                #the tanh activation is built into the RNN object, so we don't need to do it here
-                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
-                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
-                )
-
-    def forward(self, x):
-        logits = self.rnn(x)
-        return logits
-    
-
-class RNNPacked(nn.Module):
-    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
-        super().__init__()
-        self.rnn = nn.Sequential(
-                EmbeddingPackable(nn.Embedding(vocab_size, dim_embeddings)), #(B, T) -> (B, T, D)
-                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
-                #the tanh activation is built into the RNN object, so we don't need to do it here
-                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
-                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
-                )
-
-    def forward(self, x):
-        logits = self.rnn(x)
-        return logits
-
-
-class EmbeddingPackable(nn.Module):
-    """
-    The embedding layer in PyTorch does not support Packed Sequence objects. 
-    This wrapper class will fix that. If a normal input comes in, it will 
-    use the regular Embedding layer. Otherwise, it will work on the packed 
-    sequence to return a new Packed sequence of the appropriate result. 
-    """
-    def __init__(self, embd_layer):
-        super(EmbeddingPackable, self).__init__()
-        self.embd_layer = embd_layer 
-
-    def forward(self, input):
-        if type(input) == torch.nn.utils.rnn.PackedSequence:
-            # We need to unpack the input, 
-            sequences, lengths = torch.nn.utils.rnn.pad_packed_sequence(input.cpu(), batch_first=True)
-            #Embed it
-            sequences = self.embd_layer(sequences.to(input.data.device))
-            #And pack it into a new sequence
-            return torch.nn.utils.rnn.pack_padded_sequence(sequences, lengths.cpu(), 
-                                                            batch_first=True, enforce_sorted=False)
-        else:#apply to normal data
-            return self.embd_layer(input)   
-
-
-class LastTimeStep(nn.Module):
-    """
-    A class for extracting the hidden activations of the last time step following 
-    the output of a PyTorch RNN module. 
-    """
-    def __init__(self, rnn_layers=1, bidirectional=False):
-        super(LastTimeStep, self).__init__()
-        self.rnn_layers = rnn_layers
-        if bidirectional:
-            self.num_driections = 2
-        else:
-            self.num_driections = 1    
-    
-    def forward(self, input):
-        #Result is either a tupe (out, h_t)
-        #or a tuple (out, (h_t, c_t))
-        rnn_output = input[0]
-        last_step = input[1] #this will be h_t
-        if(type(last_step) == tuple):#unless it's a tuple, 
-            last_step = last_step[0]#then h_t is the first item in the tuple
-        batch_size = last_step.shape[1] #per docs, shape is: '(num_layers * num_directions, batch, hidden_size)'
-        #reshaping so that everything is separate 
-        last_step = last_step.view(self.rnn_layers, self.num_driections, batch_size, -1)
-        #We want the last layer's results
-        last_step = last_step[self.rnn_layers-1] 
-        #Re order so batch comes first
-        last_step = last_step.permute(1, 0, 2)
-        #Finally, flatten the last two dimensions into one
-        return last_step.reshape(batch_size, -1)
-
+# Karpathy
+# https://github.com/karpathy/ng-video-lecture
+# https://github.com/karpathy/nanoGPT
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
@@ -342,7 +237,121 @@ def generate(model, idx, max_new_tokens, block_size=None):
         idx = torch.cat((idx, idx_next), dim=1) 
     return idx
 
-# MNIST ATTENTION
+
+# https://github.com/EdwardRaff/Inside-Deep-Learning
+
+# 4. RNNs
+
+def moveTo(obj, device):
+    """
+    obj: the python object to move to a device, or to move its contents to a device
+    device: the compute device to move objects to
+    """
+    if hasattr(obj, "to"):
+        return obj.to(device)
+    elif isinstance(obj, list):
+        return [moveTo(x, device) for x in obj]
+    elif isinstance(obj, tuple):
+        return tuple(moveTo(list(obj), device))
+    elif isinstance(obj, set):
+        return set(moveTo(list(obj), device))
+    elif isinstance(obj, dict):
+        to_ret = dict()
+        for key, value in obj.items():
+            to_ret[moveTo(key, device)] = moveTo(value, device)
+        return to_ret
+    else:
+        return obj
+
+
+class EmbeddingPackable(nn.Module):
+    """
+    The embedding layer in PyTorch does not support Packed Sequence objects. 
+    This wrapper class will fix that. If a normal input comes in, it will 
+    use the regular Embedding layer. Otherwise, it will work on the packed 
+    sequence to return a new Packed sequence of the appropriate result. 
+    """
+    def __init__(self, embd_layer):
+        super(EmbeddingPackable, self).__init__()
+        self.embd_layer = embd_layer 
+
+    def forward(self, input):
+        if type(input) == torch.nn.utils.rnn.PackedSequence:
+            # We need to unpack the input, 
+            sequences, lengths = torch.nn.utils.rnn.pad_packed_sequence(input.cpu(), batch_first=True)
+            #Embed it
+            sequences = self.embd_layer(sequences.to(input.data.device))
+            #And pack it into a new sequence
+            return torch.nn.utils.rnn.pack_padded_sequence(sequences, lengths.cpu(), 
+                                                            batch_first=True, enforce_sorted=False)
+        else:#apply to normal data
+            return self.embd_layer(input)   
+
+
+class LastTimeStep(nn.Module):
+    """
+    A class for extracting the hidden activations of the last time step following 
+    the output of a PyTorch RNN module. 
+    """
+    def __init__(self, rnn_layers=1, bidirectional=False):
+        super(LastTimeStep, self).__init__()
+        self.rnn_layers = rnn_layers
+        if bidirectional:
+            self.num_driections = 2
+        else:
+            self.num_driections = 1    
+    
+    def forward(self, input):
+        #Result is either a tupe (out, h_t)
+        #or a tuple (out, (h_t, c_t))
+        rnn_output = input[0]
+        last_step = input[1] #this will be h_t
+        if(type(last_step) == tuple):#unless it's a tuple, 
+            last_step = last_step[0]#then h_t is the first item in the tuple
+        batch_size = last_step.shape[1] #per docs, shape is: '(num_layers * num_directions, batch, hidden_size)'
+        #reshaping so that everything is separate 
+        last_step = last_step.view(self.rnn_layers, self.num_driections, batch_size, -1)
+        #We want the last layer's results
+        last_step = last_step[self.rnn_layers-1] 
+        #Re order so batch comes first
+        last_step = last_step.permute(1, 0, 2)
+        #Finally, flatten the last two dimensions into one
+        return last_step.reshape(batch_size, -1)
+
+
+class RNN(nn.Module):
+    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
+        super().__init__()
+        self.rnn = nn.Sequential(
+                nn.Embedding(vocab_size, dim_embeddings), #(B, T) -> (B, T, D)
+                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
+                #the tanh activation is built into the RNN object, so we don't need to do it here
+                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
+                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
+                )
+
+    def forward(self, x):
+        logits = self.rnn(x)
+        return logits
+    
+
+class RNNPacked(nn.Module):
+    def __init__(self, vocab_size, dim_embeddings, hidden_nodes, n_classes):
+        super().__init__()
+        self.rnn = nn.Sequential(
+                EmbeddingPackable(nn.Embedding(vocab_size, dim_embeddings)), #(B, T) -> (B, T, D)
+                nn.RNN(dim_embeddings, hidden_nodes, batch_first=True), #(B, T, D) -> ( (B,T,D) , (S, B, D)  )
+                #the tanh activation is built into the RNN object, so we don't need to do it here
+                LastTimeStep(), #We need to take the RNN output and reduce it to one item, (B, D)
+                nn.Linear(hidden_nodes, n_classes), #(B, D) -> (B, classes)
+                )
+
+    def forward(self, x):
+        logits = self.rnn(x)
+        return logits
+
+
+# 10. Attention mechanisms
 
 class Flatten2(nn.Module):
     """
@@ -565,6 +574,8 @@ class SmarterAttentionNet(nn.Module):
         return self.prediction_net(final_context)
     
 
+# 11. Sequence-to-sequence
+
 class Seq2SeqAttention(nn.Module):
 
     def __init__(self, num_embeddings, embd_size, hidden_size, padding_idx=None, layers=1, max_decode_length=20):
@@ -773,6 +784,7 @@ class AttentionAvg(nn.Module):
         
         return context.view(B, D) #Flatten this out to (B, D)
 
+
 class EmbeddingAttentionBag(nn.Module):
 
     def __init__(self, vocab_size, D, embd_layers=3, padding_idx=None):
@@ -805,6 +817,8 @@ class EmbeddingAttentionBag(nn.Module):
         #If we wanted to just do normal averaging, we could return the context variable right now!
         return self.attn(x, context, mask=mask) # ((B, T, D), (B, D)) -> (B, D)
     
+
+# 12. Network design alternatives to RNNs
 
 #Adapted from from https://github.com/pytorch/examples/blob/0c1654d6913f77f09c0505fb284d977d89c17c1a/word_language_model/model.py#L63
 class PositionalEncoding(nn.Module):

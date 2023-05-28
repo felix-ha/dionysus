@@ -19,6 +19,9 @@ from torchtext.vocab import vocab
 import numpy as np
 
 
+# Karpathy
+# https://github.com/karpathy/ng-video-lecture
+
 def get_distinct_characters(text: str) -> list[str]:
     """
     Returns all unique charachters of the text as a list. 
@@ -83,6 +86,8 @@ def get_batch(data, block_size, batch_size):
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
 
+
+# https://github.com/EdwardRaff/Inside-Deep-Learning
 
 class LanguageModelDataset(Dataset):
     def __init__(self, text_file, block_size, vocabulary=None, encoder=None, decoder=None):
