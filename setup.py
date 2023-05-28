@@ -12,6 +12,8 @@ with open(os.path.join(home, 'requirements.txt'), encoding='utf-8') as f:
 requirements = []
 for line in lines:
     try:
+        if line.endswith("+cpu"):
+            line = line[:-4]
         requirements.append(pkg_resources.Requirement(line))
     except:
         pass
