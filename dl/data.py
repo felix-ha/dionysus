@@ -141,8 +141,11 @@ def unicodeToAscii(s, all_letters):
 
 
 class LanguageNameDataset(Dataset):
+    """
+    Padding token id is set to 0
+    """
     
-    def __init__(self):
+    def __init__(self, padding_token):
         data_dir = Path("data/names")
         zip_file_url = "https://download.pytorch.org/tutorial/data.zip"
         r = requests.get(zip_file_url)
@@ -152,11 +155,12 @@ class LanguageNameDataset(Dataset):
             z.extractall()
 
         all_letters = string.ascii_letters + " .,;'"
-        self.vocab_size = len(all_letters)
-        n_letters = len(all_letters)
+        n_letters = len(all_letters) 
         self.token_to_index = {}
+        self.token_to_index[padding_token] = 0
         for i in range(n_letters):
-            self.token_to_index[all_letters[i]] = i
+            self.token_to_index[all_letters[i]] = i+1
+        self.vocab_size = len(self.token_to_index)
 
         name_language_data ={}
         for zip_path in [str(p).replace("\\", "/") for p in data_dir.iterdir()]:
@@ -379,7 +383,7 @@ def text_transform(x, vocab, tokenizer): #string -> list of integers
 def label_transform(x): 
     return x-1 #labes are originally [1, 2, 3, 4] but we need them as [0, 1, 2, 3] 
 
-def pad_batch(batch, vocab, tokenizer, padding_idx):
+def pad_batch_agnews(batch, vocab, tokenizer, padding_idx):
     """
     Pad items in the batch to the length of the longest item in the batch. 
     Also, re-order so that the values are returned (input, label)
@@ -434,8 +438,19 @@ def get_ag_news_dataloaders(B, min_freq):
     text = text_transform(f"{unk_token} this is new halloasdf", vocabulary, tokenizer)
     # assert text == [1, 0, 678, 165, 92, 0, 2]
     padding_idx = vocabulary[padding_token]
-    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda x: pad_batch(x, vocabulary, tokenizer, padding_idx))
-    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=lambda x: pad_batch(x, vocabulary, tokenizer, padding_idx))
+    train_loader = DataLoader(train_dataset, batch_size=B, shuffle=True, collate_fn=lambda x: pad_batch_agnews(x, vocabulary, tokenizer, padding_idx))
+    test_loader = DataLoader(test_dataset, batch_size=B, collate_fn=lambda x: pad_batch_agnews(x, vocabulary, tokenizer, padding_idx))
 
     NUM_CLASS = len(np.unique([z[0] for z in train_dataset])) 
     return train_loader, test_loader, NUM_CLASS, vocabulary, padding_idx
+
+
+def pad_batch(batch, padding_value=0):
+    input_tensors = []
+    labels = []
+    for x, y in batch:
+        input_tensors.append(x)
+        labels.append(y)
+    x_padded = torch.nn.utils.rnn.pad_sequence(input_tensors, batch_first=True, padding_value=padding_value)
+    y_batched = torch.as_tensor(labels, dtype=torch.long)
+    return x_padded, y_batched

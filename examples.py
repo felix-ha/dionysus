@@ -9,7 +9,7 @@ from dataclasses import replace
 import seaborn as sns
 
 from dl.training import TrainingConfig, train, cross_entropy_language_model
-from dl.data import LanguageModelDataset, LanguageNameDataset, LargestDigit, LargestDigitVariable, pad_and_pack, TranslationDataset, pad_batch_seq2seq, get_ag_news_dataloaders
+from dl.data import *
 from dl.models import *
 
 import os
@@ -574,4 +574,22 @@ def run_RNN_alternative():
 
 
 if __name__ == "__main__": 
-    feadforward_moon()
+    dataset = LanguageNameDataset(padding_token = "<PAD>")
+
+    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    data_loader_training = DataLoader(train_data, batch_size=4, shuffle=False, collate_fn=pad_batch)
+    # data_loader_validation = DataLoader(test_data, batch_size=16, shuffle=False, collate_fn=pad_character_data)
+
+    for x, y in data_loader_training:
+        print(x)
+        print(y)
+        break 
+
+    print(dataset.token_to_index)
+    # run_RNN()
+    # run_RNN_packed()
+
+
+
+
+
