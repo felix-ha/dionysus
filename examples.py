@@ -11,6 +11,7 @@ import seaborn as sns
 from dl.training import TrainingConfig, train, cross_entropy_language_model
 from dl.data import *
 from dl.models import *
+import dl.custom_models as cm
 
 import os
 import logging
@@ -573,22 +574,50 @@ def run_RNN_alternative():
     # plt.show()
 
 
+
+# Custon
+
+def run_custom():
+    padding_token = "<PAD>"
+    dataset = LanguageNameDataset(padding_token)
+
+    #train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
+    N = len(dataset)
+    N_train = int(N * 0.9)
+    N_validation = N - N_train
+    train_data, test_data = torch.utils.data.random_split(dataset, (N_train, N_validation))
+    data_loader_training = DataLoader(train_data, batch_size=32, shuffle=True, collate_fn=pad_batch)
+    data_loader_validation = DataLoader(test_data, batch_size=32, shuffle=False, collate_fn=pad_batch)
+
+    embedding_dim = 32
+    vocab_size = dataset.vocab_size
+    number_classes = len(dataset.label_names)
+    padding_idx = dataset.token_to_index[padding_token]
+
+    model = cm.SimpleTransformerClassifier(vocab_size,
+                                            embedding_dim, 
+                                            max_context_len=25, 
+                                            num_heads=4, 
+                                            num_layers=4, 
+                                            number_classes=number_classes, 
+                                            padding_idx=padding_idx)
+
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model, 
+                                  epochs=25,
+                                  loss_func=loss_func, 
+                                  training_loader=data_loader_training, 
+                                  validation_loader=data_loader_validation, 
+                                  save_model=True,
+                                  save_path=os.path.join(os.getcwd(), "runs"),
+                                  model_name="custom_transformer", 
+                                  score_funcs= {'accuracy': accuracy_score}, 
+                                  progress_bar=False)
+    train(train_config)  
+
 if __name__ == "__main__": 
-    dataset = LanguageNameDataset(padding_token = "<PAD>")
-
-    train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
-    data_loader_training = DataLoader(train_data, batch_size=4, shuffle=False, collate_fn=pad_batch)
-    # data_loader_validation = DataLoader(test_data, batch_size=16, shuffle=False, collate_fn=pad_character_data)
-
-    for x, y in data_loader_training:
-        print(x)
-        print(y)
-        break 
-
-    print(dataset.token_to_index)
-    # run_RNN()
-    # run_RNN_packed()
-
+    run_custom()
 
 
 
