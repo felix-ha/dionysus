@@ -63,7 +63,7 @@ class TrainingConfig:
             logging.info(f"device {self.device} is not available, using cpu instead")
 
 
-def save_checkpoint(epoch, config, results, x_sample):
+def save_checkpoint(epoch, config, results, validation_result, x_sample):
     subdirectory = "last" if epoch == "last" else f"epoch_{epoch}"
     save_path = Path(config.save_path_final).joinpath(subdirectory)
     save_path.mkdir(parents=True, exist_ok=False)
@@ -75,7 +75,8 @@ def save_checkpoint(epoch, config, results, x_sample):
     'epoch': epoch,
     'model_state_dict': config.model.state_dict(),
     'optimizer_state_dict': config.optimizer.state_dict(),
-    'results' : results_pd 
+    'results' : results_pd,
+    'validation_result': validation_result
     }, os.path.join(save_path, constants.CHECKPOINT_FILE))
     logging.info("saved result dict")
 
@@ -109,24 +110,24 @@ def train(config: TrainingConfig):
     config.model.to(config.device)
     for epoch in tqdm(range(config.epochs), desc="epoch", disable = not config.progress_bar):
         config.model = config.model.train()
-        epoch_time, x_sample = run_epoch(config, results, epoch, prefix="training")
+        epoch_time, _, x_sample = run_epoch(config, results, epoch, prefix="training")
         time_training += epoch_time
 
         if config.validation_loader is not None:
             config.model = config.model.eval()
             with torch.no_grad():
-                run_epoch(config, results, epoch, prefix="validation")
+                _, validation_result, _ = run_epoch(config, results, epoch, prefix="validation")
     
         results["epoch"].append(epoch+1)
         results["epoch_time"].append(epoch_time)
 
         if config.checkpoint_epochs is not None and epoch in config.checkpoint_epochs:
-            save_checkpoint(epoch, config, results, x_sample)
+            save_checkpoint(epoch, config, results, validation_result, x_sample)
 
     logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
 
     if config.save_model:
-        save_checkpoint("last", config, results, x_sample)
+        save_checkpoint("last", config, results, validation_result, x_sample)
 
 
 def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
@@ -179,8 +180,15 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     time_elapsed = end-start
     if not config.progress_bar:
         if prefix == "training":
-            logging.info(f"finished epoch {epoch}, took {(time_elapsed / 60 ):.3f} minutes")
-    return time_elapsed, x
+            logging.info(f"finished epoch {epoch-1}, took {(time_elapsed / 60 ):.3f} minutes")
+
+    if config.epochs - 1 == epoch and prefix == "validation":
+        logging.info(f"last {epoch}")
+        validation_result = (y_true, y_pred)
+    else:
+        validation_result = None
+
+    return time_elapsed, validation_result, x
 
 def cross_entropy_language_model(logits, targets):
     """

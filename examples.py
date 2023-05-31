@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 import torchvision
 import torchvision.transforms as transforms
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, ConfusionMatrixDisplay, confusion_matrix
 import matplotlib.pyplot as plt
 from dataclasses import replace
 import seaborn as sns
@@ -47,8 +47,7 @@ def feadforward_moon():
     
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
-
-    
+   
 
 # Karparthy
 
@@ -580,10 +579,11 @@ def run_RNN_alternative():
 def run_custom():
     padding_token = "<PAD>"
     dataset = LanguageNameDataset(padding_token)
+    labels = dataset.label_names
 
     #train_data, test_data = torch.utils.data.random_split(dataset, (len(dataset)-300, 300))
     N = len(dataset)
-    N_train = int(N * 0.9)
+    N_train = int(N * 0.8)
     N_validation = N - N_train
     train_data, test_data = torch.utils.data.random_split(dataset, (N_train, N_validation))
     data_loader_training = DataLoader(train_data, batch_size=32, shuffle=True, collate_fn=pad_batch)
@@ -605,20 +605,111 @@ def run_custom():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model, 
-                                  epochs=25,
+                                  epochs=5,
                                   loss_func=loss_func, 
                                   training_loader=data_loader_training, 
                                   validation_loader=data_loader_validation, 
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="custom_transformer", 
-                                  score_funcs= {'accuracy': accuracy_score}, 
+                                  score_funcs= {'accuracy': accuracy_score, 'balanced_accuracy': balanced_accuracy_score}, 
                                   progress_bar=False)
-    train(train_config)  
+    train(train_config) 
+
+    results_path = Path(train_config.save_path_final).joinpath("last")
+    checkpoint = torch.load(results_path.joinpath("model.pt"))
+    results_pd = checkpoint['results']
+    validation_result = checkpoint['validation_result']
+
+    save_loss(results_pd, results_path)
+    save_metrics(results_pd, results_path)
+    save_confusion_matrix(validation_result, labels=labels, results_path=results_path) 
+
+
+def save_loss(results_pd, results_path):
+    sns.lineplot(x="epoch", y="training_loss", data=results_pd, label="Training Loss")
+    plot = sns.lineplot(x="epoch", y="validation_loss", data=results_pd, label="Validation Loss")
+    # plt.title("Title")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+   # plt.show()
+    fig = plot.get_figure()
+    fig.savefig(results_path.joinpath("loss.png"))
+    plt.close()
+
+def save_metrics(results_pd, results_path):
+    sns.lineplot(x="epoch", y="validation_accuracy", data=results_pd, label="Accuracy")
+    plot = sns.lineplot(x="epoch", y="validation_balanced_accuracy", data=results_pd, label="Balanced Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Metric")
+   # plt.show()
+    fig = plot.get_figure()
+    fig.savefig(results_path.joinpath("metrics.png"))
+    plt.close()
+
+def save_confusion_matrix(validation_result, labels, results_path):
+    y_true, y_pred = validation_result
+    cm=confusion_matrix(y_true, y_pred)
+    fig,ax=plt.subplots(figsize=(6,6))
+    disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=labels)
+    disp.plot(cmap="Reds",values_format=".0f",ax=ax,colorbar=False)
+    plt.title("Confusion matrix")
+    fig.savefig(results_path.joinpath("cm.png"))
+    plt.close()
+        
+
+def run_multiclass():
+    from sklearn.datasets import make_classification
+
+    n_features = 2
+    n_classes = 3
+
+    X_train, y_train = make_classification(n_samples=5_500, 
+                                           n_features = n_features, 
+                                           n_redundant = 0,
+                                           n_classes=n_classes, 
+                                           n_clusters_per_class=1, 
+                                           weights=[0.6, 0.3, 0.1])
+    X_validation, y_validation = make_classification(n_samples=250, 
+                                           n_features = n_features, 
+                                           n_redundant = 0,
+                                           n_classes=n_classes, 
+                                           n_clusters_per_class=1, 
+                                             weights=[0.6, 0.3, 0.1])
+    train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
+                                torch.tensor(y_train, dtype=torch.long))
+    validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
+                                        torch.tensor(y_validation, dtype=torch.long))
+    training_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=32)
+
+
+    model = nn.Linear(n_features, n_classes)
+    loss_func = nn.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model,
+                                  epochs=100,
+                                   loss_func=loss_func, 
+                                   training_loader=training_loader, 
+                                   validation_loader=validation_loader,
+                                   save_model=True,
+                                   save_path=os.path.join(os.getcwd(), "runs"),
+                                   model_name="multiclass", 
+                                   score_funcs= {'accuracy': accuracy_score, 'balanced_accuracy': balanced_accuracy_score}, 
+                                   progress_bar=True)
+    
+    logging.info(f"start training of model: {train_config.model_name}")
+    train(train_config)
+
+    results_path = Path(train_config.save_path_final).joinpath("last")
+    checkpoint = torch.load(results_path.joinpath("model.pt"))
+    results_pd = checkpoint['results']
+    validation_result = checkpoint['validation_result']
+
+    save_loss(results_pd, results_path)
+    save_metrics(results_pd, results_path)
+    save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
+
 
 if __name__ == "__main__": 
-    run_custom()
-
-
-
-
+    run_multiclass()
