@@ -5,6 +5,7 @@ from tqdm.autonotebook import tqdm
 import os
 from pathlib import Path
 import datetime
+import zipfile
 import logging
 
 import numpy as np
@@ -200,3 +201,18 @@ def cross_entropy_language_model(logits, targets):
     targets = targets.view(B*T)
     loss = F.cross_entropy(logits, targets)
     return loss
+
+
+# TODO Whole folder structure is saved atm, the results folder should be the only parent dir 
+
+def zip_results(train_config):
+    folder_name = Path(train_config.save_path_final).parts[-1]
+    zip_file_name = Path(train_config.save_path_final).parent.joinpath(f'{folder_name}.zip')
+
+    zip_file = zipfile.ZipFile(zip_file_name, 'w', zipfile.ZIP_DEFLATED)
+    zipdir(train_config.save_path_final, zip_file)
+
+def zipdir(path, ziph):
+    for root, _, files in os.walk(path):
+        for file in files:
+            ziph.write(os.path.join(root, file))

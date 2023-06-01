@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from dataclasses import replace
 import seaborn as sns
 
-from dl.training import TrainingConfig, train, cross_entropy_language_model
+from dl.training import TrainingConfig, train, cross_entropy_language_model, zip_results
 from dl.data import *
 from dl.models import *
 import dl.custom_models as cm
@@ -688,11 +688,12 @@ def run_multiclass():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model,
-                                  epochs=100,
+                                  epochs=10,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    save_model=True,
+                                   checkpoint_epochs=[8, 9],
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="multiclass", 
                                    score_funcs= {'accuracy': accuracy_score, 'balanced_accuracy': balanced_accuracy_score}, 
@@ -710,6 +711,7 @@ def run_multiclass():
     save_metrics(results_pd, results_path)
     save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
 
+    zip_results(train_config)
 
 if __name__ == "__main__": 
     run_multiclass()
