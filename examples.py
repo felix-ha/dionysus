@@ -572,7 +572,7 @@ def run_RNN_alternative():
 
 
 
-# Custon
+# Custom
 
 def run_custom():
     padding_token = "<PAD>"
@@ -612,21 +612,7 @@ def run_custom():
                                   model_name="custom_transformer",  
                                   progress_bar=False)
     train(train_config) 
-
-    results_path = Path(train_config.save_path_final).joinpath("last")
-    checkpoint = torch.load(results_path.joinpath("model.pt"))
-    results_pd = checkpoint['results']
-    validation_result = checkpoint['validation_result']
-
-    save_loss(results_pd, results_path)
-    save_metrics(results_pd, results_path)
-    save_confusion_matrix(validation_result, labels=labels, results_path=results_path) 
-
-
-
-
-
-        
+       
 
 def run_multiclass():
     from sklearn.datasets import make_classification
@@ -673,36 +659,6 @@ def run_multiclass():
     
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
-
-    # results_path = Path(train_config.save_path_final).joinpath("last")
-    # checkpoint = torch.load(results_path.joinpath("model.pt"))
-    # results_pd = checkpoint['results']
-    # validation_result = checkpoint['validation_result']
-
-    # save_loss(results_pd, results_path)
-    # save_metrics(results_pd, results_path, "training")
-    # save_metrics(results_pd, results_path, "validation")
-    # save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
-
-  #  zip_results(train_config)
-
-    # size_mb = compute_size(model)
-    # print(f"Model size (MB) - {size_mb:.4f}")
-
-    # time_avg_ms, time_std_ms = time_pipeline(model, validation_loader)
-    # print(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
-
-
-    # y_true, y_pred = validation_result
-
-    # validation_loader
-
-    # dummy_clf = DummyClassifier(strategy='most_frequent')
-    # X, y = validation_dataset[:]
-    # dummy_clf.fit(X, y)
-    # y_pred = dummy_clf.predict(X)
-    # rep = classification_report(y_true, y_pred, target_names=['A', 'B', 'C'], zero_division=0)
-    # print(rep)
 
 
 if __name__ == "__main__": 
