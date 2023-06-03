@@ -103,6 +103,7 @@ def save_confusion_matrix(validation_result, labels, results_path):
     fig,ax=plt.subplots(figsize=(6,6))
     disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=labels)
     disp.plot(cmap="Blues",values_format=".0f",ax=ax,colorbar=False)
+    plt.xticks(rotation=90)
     plt.title("Confusion matrix")
     fig.savefig(results_path.joinpath("cm.png"))
     plt.close()
