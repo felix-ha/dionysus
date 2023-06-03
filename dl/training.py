@@ -13,6 +13,8 @@ import pandas as pd
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.dummy import DummyClassifier
 from dataclasses import dataclass
 from . import constants, models
 
@@ -23,6 +25,7 @@ class TrainingConfig:
     loss_func: any
     training_loader: DataLoader
     validation_loader: DataLoader = None
+    validation_dataset: any = None
     lr: float = 0.001
     optimizer: str = "SGD"
     epochs: int = 2
@@ -30,7 +33,8 @@ class TrainingConfig:
     save_model: bool = False
     save_path: str = None
     model_name: str = None
-    score_funcs: dict = None
+    classification_metrics: dict = False
+    class_names: list = None
     progress_bar: bool = True
     checkpoint_epochs: list[int] = None
 
@@ -97,8 +101,8 @@ def train(config: TrainingConfig):
     if config.validation_loader is not None:
         to_track.append("validation_loss")
 
-    if config.score_funcs is not None: 
-        for name, _ in config.score_funcs.items():
+    if config.classification_metrics: 
+        for name in ['accuracy', 'macro_recall', 'macro_precision', 'macro_f1score']:
             to_track.append("training_" + name)
             if config.validation_loader is not None:
                 to_track.append("validation_" + name)
@@ -130,6 +134,28 @@ def train(config: TrainingConfig):
     if config.save_model:
         save_checkpoint("last", config, results, validation_result, x_sample)
 
+    if config.validation_loader is not None:
+        y_true, y_pred = validation_result
+
+        cm=confusion_matrix(y_true, y_pred)
+        logging.info("confusion matrix: ")
+        logging.info(f"\n{cm}")
+
+        dummy_clf = DummyClassifier(strategy='most_frequent')
+        X, y = config.validation_dataset[:]
+        dummy_clf.fit(X, y)
+        y_pred_dummy = dummy_clf.predict(X)
+        dummy_report = classification_report(y_true, y_pred_dummy, target_names=config.class_names, zero_division=0)
+        logging.info("classification report baseline: ")
+        logging.info(f"\n{dummy_report}")
+
+        report = classification_report(y_true, y_pred, target_names=config.class_names, zero_division=0)
+        logging.info("classification report: ")
+        logging.info(f"\n{report}")
+
+
+
+
 
 def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     # TODO move strings to config
@@ -155,7 +181,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
 
         running_loss.append(loss.item())
 
-        if config.score_funcs is not None and isinstance(y, torch.Tensor):
+        if config.classification_metrics and isinstance(y, torch.Tensor):
             #moving labels & predictions back to CPU for computing / storing predictions
             labels = y.detach().cpu().numpy()
             y_hat = y_hat.detach().cpu().numpy()
@@ -170,12 +196,14 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         y_pred = np.argmax(y_pred, axis=1)
     #Else, we assume we are working on a regression problem
     
-    if config.score_funcs is not None:
-        for name, score_func in config.score_funcs.items():
-            try:
-                results[prefix + "_" + name].append( score_func(y_true, y_pred) )
-            except:
-                results[prefix + "_" + name].append(float("NaN"))
+    if config.classification_metrics:
+        report_dict = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
+        macro_dict = report_dict['macro avg']
+        results[prefix + "_accuracy"].append(report_dict['accuracy'])
+        results[prefix + "_macro_recall"].append(macro_dict['recall'])
+        results[prefix + "_macro_precision"].append(macro_dict['precision'])
+        results[prefix + "_macro_f1score"].append(macro_dict['f1-score'])
+
 
     results[prefix + "_loss"].append(np.mean(running_loss))
     time_elapsed = end-start

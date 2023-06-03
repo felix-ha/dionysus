@@ -3,7 +3,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 import torchvision
 import torchvision.transforms as transforms
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, ConfusionMatrixDisplay, confusion_matrix, f1_score, classification_report
+from sklearn.dummy import DummyClassifier
 import matplotlib.pyplot as plt
 from dataclasses import replace
 import seaborn as sns
@@ -640,22 +641,26 @@ def save_loss(results_pd, results_path):
     fig.savefig(results_path.joinpath("loss.png"))
     plt.close()
 
-def save_metrics(results_pd, results_path):
-    sns.lineplot(x="epoch", y="validation_accuracy", data=results_pd, label="Accuracy")
-    plot = sns.lineplot(x="epoch", y="validation_balanced_accuracy", data=results_pd, label="Balanced Accuracy")
+def save_metrics(results_pd, results_path, prefix=""):
+    sns.set_style("darkgrid")
+    sns.lineplot(x="epoch", y= prefix + "_accuracy", data=results_pd, label="Accuracy")
+    sns.lineplot(x="epoch", y= prefix + "_macro_recall", data=results_pd, label="Macro Recall", linestyle='--')
+    sns.lineplot(x="epoch", y= prefix + "_macro_precision", data=results_pd, label="Macro Precision", linestyle='--')
+    plot =sns.lineplot(x="epoch", y= prefix + "_macro_f1score", data=results_pd, label="Macro F1-Score", color='r')
     plt.xlabel("Epoch")
     plt.ylabel("Metric")
    # plt.show()
     fig = plot.get_figure()
-    fig.savefig(results_path.joinpath("metrics.png"))
+    fig.savefig(results_path.joinpath(prefix + "_metrics.png"))
     plt.close()
 
 def save_confusion_matrix(validation_result, labels, results_path):
+    sns.set_style("white")
     y_true, y_pred = validation_result
     cm=confusion_matrix(y_true, y_pred)
     fig,ax=plt.subplots(figsize=(6,6))
     disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=labels)
-    disp.plot(cmap="Reds",values_format=".0f",ax=ax,colorbar=False)
+    disp.plot(cmap="Blues",values_format=".0f",ax=ax,colorbar=False)
     plt.title("Confusion matrix")
     fig.savefig(results_path.joinpath("cm.png"))
     plt.close()
@@ -689,18 +694,18 @@ def run_multiclass():
     n_features = 2
     n_classes = 3
 
-    X_train, y_train = make_classification(n_samples=5_500, 
+    X_train, y_train = make_classification(n_samples=10_500, 
                                            n_features = n_features, 
                                            n_redundant = 0,
                                            n_classes=n_classes, 
                                            n_clusters_per_class=1, 
-                                           weights=[0.6, 0.3, 0.1])
+                                           weights=[0.33, 0.33, 0.33])
     X_validation, y_validation = make_classification(n_samples=250, 
                                            n_features = n_features, 
                                            n_redundant = 0,
                                            n_classes=n_classes, 
                                            n_clusters_per_class=1, 
-                                             weights=[0.6, 0.3, 0.1])
+                                            weights=[0.33, 0.33, 0.33])
     train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
                                 torch.tensor(y_train, dtype=torch.long))
     validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
@@ -709,20 +714,21 @@ def run_multiclass():
     validation_loader = DataLoader(validation_dataset, batch_size=32)
 
 
-    model = nn.Sequential(nn.Linear(n_features, 1_000),nn.Linear(1_000, n_classes))
+    model = nn.Sequential(nn.Linear(n_features, 5), nn.Tanh(), nn.Dropout(0.5), nn.Linear(5, n_classes)) 
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model,
-                                  epochs=1,
+                                  epochs=10,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
+                                   validation_dataset=validation_dataset,
                                    save_model=True,
-                                   checkpoint_epochs=[8, 9],
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="multiclass", 
-                                   score_funcs= {'accuracy': accuracy_score, 'balanced_accuracy': balanced_accuracy_score}, 
-                                   progress_bar=True)
+                                   classification_metrics = True,
+                                   class_names = ['A', 'B', 'C'],
+                                   progress_bar=False)
     
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
@@ -733,7 +739,8 @@ def run_multiclass():
     validation_result = checkpoint['validation_result']
 
     save_loss(results_pd, results_path)
-    save_metrics(results_pd, results_path)
+    save_metrics(results_pd, results_path, "training")
+    save_metrics(results_pd, results_path, "validation")
     save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
 
   #  zip_results(train_config)
@@ -741,8 +748,21 @@ def run_multiclass():
     # size_mb = compute_size(model)
     # print(f"Model size (MB) - {size_mb:.4f}")
 
-    time_avg_ms, time_std_ms = time_pipeline(model, validation_loader)
-    print(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
+    # time_avg_ms, time_std_ms = time_pipeline(model, validation_loader)
+    # print(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
+
+
+    # y_true, y_pred = validation_result
+
+    # validation_loader
+
+    # dummy_clf = DummyClassifier(strategy='most_frequent')
+    # X, y = validation_dataset[:]
+    # dummy_clf.fit(X, y)
+    # y_pred = dummy_clf.predict(X)
+    # rep = classification_report(y_true, y_pred, target_names=['A', 'B', 'C'], zero_division=0)
+    # print(rep)
+
 
 if __name__ == "__main__": 
     run_multiclass()
