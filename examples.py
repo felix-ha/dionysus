@@ -7,7 +7,6 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score, ConfusionMa
 from sklearn.dummy import DummyClassifier
 import matplotlib.pyplot as plt
 from dataclasses import replace
-import seaborn as sns
 
 from dl.training import TrainingConfig, train, cross_entropy_language_model, zip_results
 from dl.data import *
@@ -16,9 +15,6 @@ import dl.custom_models as cm
 
 import os
 import logging
-import tempfile
-from time import perf_counter
-
 
 
 def feadforward_moon():
@@ -627,62 +623,9 @@ def run_custom():
     save_confusion_matrix(validation_result, labels=labels, results_path=results_path) 
 
 
-def save_loss(results_pd, results_path):
-    sns.lineplot(x="epoch", y="training_loss", data=results_pd, label="Training Loss")
-    plot = sns.lineplot(x="epoch", y="validation_loss", data=results_pd, label="Validation Loss")
-    # plt.title("Title")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-   # plt.show()
-    fig = plot.get_figure()
-    fig.savefig(results_path.joinpath("loss.png"))
-    plt.close()
 
-def save_metrics(results_pd, results_path, prefix=""):
-    sns.set_style("darkgrid")
-    sns.lineplot(x="epoch", y= prefix + "_accuracy", data=results_pd, label="Accuracy")
-    sns.lineplot(x="epoch", y= prefix + "_macro_recall", data=results_pd, label="Macro Recall", linestyle='--')
-    sns.lineplot(x="epoch", y= prefix + "_macro_precision", data=results_pd, label="Macro Precision", linestyle='--')
-    plot =sns.lineplot(x="epoch", y= prefix + "_macro_f1score", data=results_pd, label="Macro F1-Score", color='r')
-    plt.xlabel("Epoch")
-    plt.ylabel("Metric")
-   # plt.show()
-    fig = plot.get_figure()
-    fig.savefig(results_path.joinpath(prefix + "_metrics.png"))
-    plt.close()
 
-def save_confusion_matrix(validation_result, labels, results_path):
-    sns.set_style("white")
-    y_true, y_pred = validation_result
-    cm=confusion_matrix(y_true, y_pred)
-    fig,ax=plt.subplots(figsize=(6,6))
-    disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=labels)
-    disp.plot(cmap="Blues",values_format=".0f",ax=ax,colorbar=False)
-    plt.title("Confusion matrix")
-    fig.savefig(results_path.joinpath("cm.png"))
-    plt.close()
 
-def compute_size(model):
-    state_dict = model.state_dict()
-    with tempfile.TemporaryDirectory() as tempdir:
-        tmp_path = Path(tempdir).joinpath('model.pt')
-        torch.save(state_dict, tmp_path)
-        size_mb = tmp_path.stat().st_size / (1024 * 1024)
-    return size_mb
-
-def time_pipeline(model, data_loader, runs=100, warmup_runs=10):
-    x, _ = next(iter(data_loader))
-    latencies = []
-    for _ in range(warmup_runs):
-        _ = model(x)
-    for _ in range(runs):
-        start_time = perf_counter()
-        _ = model(x)
-        latency = perf_counter() - start_time
-        latencies.append(latency)
-    time_avg_ms = 1000 * np.mean(latencies)
-    time_std_ms = 1000 * np.std(latencies)
-    return time_avg_ms, time_std_ms
         
 
 def run_multiclass():
@@ -725,20 +668,21 @@ def run_multiclass():
                                    model_name="multiclass", 
                                    classification_metrics = True,
                                    class_names = ['A', 'B', 'C'],
-                                   progress_bar=False)
+                                   progress_bar=False,
+                                   zip_result=True)
     
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
 
-    results_path = Path(train_config.save_path_final).joinpath("last")
-    checkpoint = torch.load(results_path.joinpath("model.pt"))
-    results_pd = checkpoint['results']
-    validation_result = checkpoint['validation_result']
+    # results_path = Path(train_config.save_path_final).joinpath("last")
+    # checkpoint = torch.load(results_path.joinpath("model.pt"))
+    # results_pd = checkpoint['results']
+    # validation_result = checkpoint['validation_result']
 
-    save_loss(results_pd, results_path)
-    save_metrics(results_pd, results_path, "training")
-    save_metrics(results_pd, results_path, "validation")
-    save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
+    # save_loss(results_pd, results_path)
+    # save_metrics(results_pd, results_path, "training")
+    # save_metrics(results_pd, results_path, "validation")
+    # save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
 
   #  zip_results(train_config)
 

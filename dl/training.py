@@ -7,13 +7,17 @@ from pathlib import Path
 import datetime
 import zipfile
 import logging
+import tempfile
+from time import perf_counter
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.dummy import DummyClassifier
 from dataclasses import dataclass
 from . import constants, models
@@ -31,6 +35,7 @@ class TrainingConfig:
     epochs: int = 2
     device: str = "cpu"
     save_model: bool = False
+    zip_result: bool = False
     save_path: str = None
     model_name: str = None
     classification_metrics: dict = False
@@ -66,6 +71,65 @@ class TrainingConfig:
             logging.info(f"using device {self.device}")
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
+
+
+def save_loss(results_pd, results_path):
+    sns.lineplot(x="epoch", y="training_loss", data=results_pd, label="Training Loss")
+    plot = sns.lineplot(x="epoch", y="validation_loss", data=results_pd, label="Validation Loss")
+    # plt.title("Title")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+   # plt.show()
+    fig = plot.get_figure()
+    fig.savefig(results_path.joinpath("loss.png"))
+    plt.close()
+
+def save_metrics(results_pd, results_path, prefix=""):
+    sns.set_style("darkgrid")
+    sns.lineplot(x="epoch", y= prefix + "_accuracy", data=results_pd, label="Accuracy")
+    sns.lineplot(x="epoch", y= prefix + "_macro_recall", data=results_pd, label="Macro Recall", linestyle='--')
+    sns.lineplot(x="epoch", y= prefix + "_macro_precision", data=results_pd, label="Macro Precision", linestyle='--')
+    plot =sns.lineplot(x="epoch", y= prefix + "_macro_f1score", data=results_pd, label="Macro F1-Score", color='r')
+    plt.xlabel("Epoch")
+    plt.ylabel("Metric")
+   # plt.show()
+    fig = plot.get_figure()
+    fig.savefig(results_path.joinpath(prefix + "_metrics.png"))
+    plt.close()
+
+def save_confusion_matrix(validation_result, labels, results_path):
+    sns.set_style("white")
+    y_true, y_pred = validation_result
+    cm=confusion_matrix(y_true, y_pred)
+    fig,ax=plt.subplots(figsize=(6,6))
+    disp=ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=labels)
+    disp.plot(cmap="Blues",values_format=".0f",ax=ax,colorbar=False)
+    plt.title("Confusion matrix")
+    fig.savefig(results_path.joinpath("cm.png"))
+    plt.close()
+
+
+def compute_size(model):
+    state_dict = model.state_dict()
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp_path = Path(tempdir).joinpath('model.pt')
+        torch.save(state_dict, tmp_path)
+        size_mb = tmp_path.stat().st_size / (1024 * 1024)
+    return size_mb
+
+def time_pipeline(model, data_loader, runs=100, warmup_runs=10):
+    x, _ = next(iter(data_loader))
+    latencies = []
+    for _ in range(warmup_runs):
+        _ = model(x)
+    for _ in range(runs):
+        start_time = perf_counter()
+        _ = model(x)
+        latency = perf_counter() - start_time
+        latencies.append(latency)
+    time_avg_ms = 1000 * np.mean(latencies)
+    time_std_ms = 1000 * np.std(latencies)
+    return time_avg_ms, time_std_ms
 
 
 def save_checkpoint(epoch, config, results, validation_result, x_sample):
@@ -129,8 +193,6 @@ def train(config: TrainingConfig):
         if config.checkpoint_epochs is not None and epoch in config.checkpoint_epochs:
             save_checkpoint(epoch, config, results, validation_result, x_sample)
 
-    logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
-
     if config.save_model:
         save_checkpoint("last", config, results, validation_result, x_sample)
 
@@ -152,6 +214,22 @@ def train(config: TrainingConfig):
         report = classification_report(y_true, y_pred, target_names=config.class_names, zero_division=0)
         logging.info("classification report: ")
         logging.info(f"\n{report}")
+
+        save_loss(results, config.save_path_final)
+        save_metrics(results, config.save_path_final, "training")
+        save_metrics(results, config.save_path_final, "validation")
+        save_confusion_matrix(validation_result, labels=config.class_names, results_path=config.save_path_final)
+
+    logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
+
+    size_mb = compute_size(config.model)
+    logging.info(f"Model size (MB) - {size_mb:.4f}")
+
+    time_avg_ms, time_std_ms = time_pipeline(config.model, config.validation_loader)
+    logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
+
+    if config.zip_result:
+        zip_results(config)
 
 
 
