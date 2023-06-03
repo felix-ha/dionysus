@@ -29,7 +29,6 @@ class TrainingConfig:
     loss_func: any
     training_loader: DataLoader
     validation_loader: DataLoader = None
-    validation_dataset: any = None
     lr: float = 0.001
     optimizer: str = "SGD"
     epochs: int = 2
@@ -196,7 +195,7 @@ def train(config: TrainingConfig):
     if config.save_model:
         save_checkpoint("last", config, results, validation_result, x_sample)
 
-    if config.classification_metrics and config.validation_dataset is not None:
+    if config.classification_metrics:
         y_true, y_pred = validation_result
 
         cm=confusion_matrix(y_true, y_pred)
@@ -204,9 +203,8 @@ def train(config: TrainingConfig):
         logging.info(f"\n{cm}")
 
         dummy_clf = DummyClassifier(strategy='most_frequent')
-        X, y = config.validation_dataset[:]
-        dummy_clf.fit(X, y)
-        y_pred_dummy = dummy_clf.predict(X)
+        dummy_clf.fit(np.zeros(len(y_true)), y_true)
+        y_pred_dummy = dummy_clf.predict(np.zeros(len(y_true)))
         dummy_report = classification_report(y_true, y_pred_dummy, target_names=config.class_names, zero_division=0)
         logging.info("classification report baseline: ")
         logging.info(f"\n{dummy_report}")

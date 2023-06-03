@@ -603,14 +603,17 @@ def run_custom():
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model, 
-                                  epochs=5,
+                                  epochs=1,
                                   loss_func=loss_func, 
                                   training_loader=data_loader_training, 
                                   validation_loader=data_loader_validation, 
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="custom_transformer",  
-                                  progress_bar=False)
+                                  classification_metrics = True,
+                                  class_names = labels,
+                                  progress_bar=False,
+                                  zip_result=True)
     train(train_config) 
        
 
@@ -648,7 +651,6 @@ def run_multiclass():
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
-                                   validation_dataset=validation_dataset,
                                    save_model=True,
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="multiclass", 
@@ -662,4 +664,4 @@ def run_multiclass():
 
 
 if __name__ == "__main__": 
-    run_multiclass()
+    run_custom()
