@@ -15,6 +15,8 @@ import dl.custom_models as cm
 
 import os
 import logging
+import tempfile
+
 
 
 def feadforward_moon():
@@ -656,6 +658,14 @@ def save_confusion_matrix(validation_result, labels, results_path):
     plt.title("Confusion matrix")
     fig.savefig(results_path.joinpath("cm.png"))
     plt.close()
+
+def compute_size(model):
+    state_dict = model.state_dict()
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp_path = Path(tempdir).joinpath('model.pt')
+        torch.save(state_dict, tmp_path)
+        size_mb = tmp_path.stat().st_size / (1024 * 1024)
+    return size_mb
         
 
 def run_multiclass():
@@ -684,11 +694,11 @@ def run_multiclass():
     validation_loader = DataLoader(validation_dataset, batch_size=32)
 
 
-    model = nn.Linear(n_features, n_classes)
+    model = nn.Sequential(nn.Linear(n_features, 1_000),nn.Linear(1_000, n_classes))
     loss_func = nn.CrossEntropyLoss()
 
     train_config = TrainingConfig(model=model,
-                                  epochs=10,
+                                  epochs=1,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
@@ -711,7 +721,10 @@ def run_multiclass():
     save_metrics(results_pd, results_path)
     save_confusion_matrix(validation_result, labels=['A', 'B', 'C'], results_path=results_path)
 
-    zip_results(train_config)
+  #  zip_results(train_config)
+
+    size_mb = compute_size(model)
+    print(f"Model size (MB) - {size_mb:.4f}")
 
 if __name__ == "__main__": 
     run_multiclass()
