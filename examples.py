@@ -16,6 +16,7 @@ import dl.custom_models as cm
 import os
 import logging
 import tempfile
+from time import perf_counter
 
 
 
@@ -666,6 +667,20 @@ def compute_size(model):
         torch.save(state_dict, tmp_path)
         size_mb = tmp_path.stat().st_size / (1024 * 1024)
     return size_mb
+
+def time_pipeline(model, data_loader, runs=100, warmup_runs=10):
+    x, _ = next(iter(data_loader))
+    latencies = []
+    for _ in range(warmup_runs):
+        _ = model(x)
+    for _ in range(runs):
+        start_time = perf_counter()
+        _ = model(x)
+        latency = perf_counter() - start_time
+        latencies.append(latency)
+    time_avg_ms = 1000 * np.mean(latencies)
+    time_std_ms = 1000 * np.std(latencies)
+    return time_avg_ms, time_std_ms
         
 
 def run_multiclass():
@@ -723,8 +738,11 @@ def run_multiclass():
 
   #  zip_results(train_config)
 
-    size_mb = compute_size(model)
-    print(f"Model size (MB) - {size_mb:.4f}")
+    # size_mb = compute_size(model)
+    # print(f"Model size (MB) - {size_mb:.4f}")
+
+    time_avg_ms, time_std_ms = time_pipeline(model, validation_loader)
+    print(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
 
 if __name__ == "__main__": 
     run_multiclass()
