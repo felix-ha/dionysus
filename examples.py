@@ -46,7 +46,6 @@ def feadforward_moon():
                                    save_model=True,
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="ffw_moon", 
-                                   score_funcs= {'accuracy': accuracy_score}, 
                                    progress_bar=False)
     
     logging.info(f"start training of model: {train_config.model_name}")
@@ -481,7 +480,6 @@ def run_RNN_alternative():
                                   loss_func=loss_func, 
                                   training_loader=train_loader,
                                   validation_loader=test_loader,
-                                  score_funcs= {'accuracy': accuracy_score},
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
                                   model_name="ag_news_RNN")
@@ -615,8 +613,7 @@ def run_custom():
                                   validation_loader=data_loader_validation, 
                                   save_model=True,
                                   save_path=os.path.join(os.getcwd(), "runs"),
-                                  model_name="custom_transformer", 
-                                  score_funcs= {'accuracy': accuracy_score, 'balanced_accuracy': balanced_accuracy_score}, 
+                                  model_name="custom_transformer",  
                                   progress_bar=False)
     train(train_config) 
 

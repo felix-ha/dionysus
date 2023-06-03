@@ -134,7 +134,7 @@ def train(config: TrainingConfig):
     if config.save_model:
         save_checkpoint("last", config, results, validation_result, x_sample)
 
-    if config.validation_loader is not None:
+    if config.classification_metrics and config.validation_dataset is not None:
         y_true, y_pred = validation_result
 
         cm=confusion_matrix(y_true, y_pred)
