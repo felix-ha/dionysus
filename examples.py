@@ -5,6 +5,8 @@ import torchvision
 import torchvision.transforms as transforms
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, ConfusionMatrixDisplay, confusion_matrix, f1_score, classification_report
 from sklearn.dummy import DummyClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_class_weight
 import matplotlib.pyplot as plt
 from dataclasses import replace
 
@@ -617,45 +619,54 @@ def run_custom():
     train(train_config) 
        
 
-def run_multiclass():
+def run_multiclass(stratify, weighting, name):
     from sklearn.datasets import make_classification
 
-    n_features = 2
-    n_classes = 3
+    n_features = 4
+    n_classes = 5
+    weights = [0.75, 0.1, 0.05, 0.08, 0.02]
 
-    X_train, y_train = make_classification(n_samples=10_500, 
-                                           n_features = n_features, 
-                                           n_redundant = 0,
-                                           n_classes=n_classes, 
-                                           n_clusters_per_class=1, 
-                                           weights=[0.33, 0.33, 0.33])
-    X_validation, y_validation = make_classification(n_samples=250, 
-                                           n_features = n_features, 
-                                           n_redundant = 0,
-                                           n_classes=n_classes, 
-                                           n_clusters_per_class=1, 
-                                            weights=[0.33, 0.33, 0.33])
+    X, y = make_classification(n_samples=15000, 
+                                n_features = n_features, 
+                                n_redundant = 0,
+                                n_classes=n_classes, 
+                                n_clusters_per_class=1,
+                                n_informative=3, 
+                                class_sep = 1.2,
+                                random_state=123,
+                                weights=weights)
+    strat_val = y if stratify else None
+    X_train, X_validation, y_train, y_validation = train_test_split(
+        X, y, test_size=0.2, stratify=strat_val, random_state=123)
+    
     train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
                                 torch.tensor(y_train, dtype=torch.long))
     validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
                                         torch.tensor(y_validation, dtype=torch.long))
-    training_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=32)
+    training_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=256)
 
 
-    model = nn.Sequential(nn.Linear(n_features, 5), nn.Tanh(), nn.Dropout(0.5), nn.Linear(5, n_classes)) 
-    loss_func = nn.CrossEntropyLoss()
+    model = nn.Sequential(nn.Linear(n_features, 15), 
+                          nn.Tanh(), nn.Dropout(0.5),
+                          nn.Linear(15, 15), 
+                         nn.Tanh(), nn.Dropout(0.5),
+                            nn.Linear(15, n_classes)) 
+    
+    weights_loss = 1 / torch.tensor(weights) if weighting else None
+    #weights_loss = torch.tensor(compute_class_weight(class_weight='balanced', classes=np.unique(y), y=y)) if weighting else None
+    loss_func = nn.CrossEntropyLoss(weights_loss.float())
 
     train_config = TrainingConfig(model=model,
-                                  epochs=10,
+                                  epochs=500,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    save_model=True,
                                    save_path=os.path.join(os.getcwd(), "runs"),
-                                   model_name="multiclass", 
+                                   model_name=name, 
                                    classification_metrics = True,
-                                   class_names = ['A', 'B', 'C'],
+                                   class_names = ['A', 'B', 'C', 'D', 'E'],
                                    progress_bar=False,
                                    zip_result=True)
     
@@ -664,4 +675,6 @@ def run_multiclass():
 
 
 if __name__ == "__main__": 
-    run_custom()
+   # run_multiclass(stratify=False, weighting=False, name="multiclass_none_none")
+   # run_multiclass(stratify=True, weighting=False, name="multiclass_stratify_none")
+    run_multiclass(stratify=True, weighting=True, name="multiclass_stratify_weights")
