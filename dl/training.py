@@ -120,18 +120,21 @@ def compute_size(model):
     return size_mb
 
 def time_pipeline(config, runs=100, warmup_runs=10):
-    x, _ = next(iter(config.validation_loader))
-    x = models.moveTo(x, config.device)
-    latencies = []
-    for _ in range(warmup_runs):
-        _ = config.model(x)
-    for _ in range(runs):
-        start_time = perf_counter()
-        _ = config.model(x)
-        latency = perf_counter() - start_time
-        latencies.append(latency)
-    time_avg_ms = 1000 * np.mean(latencies)
-    time_std_ms = 1000 * np.std(latencies)
+    config.model.to(config.device)
+    config.model = config.model.eval()
+    with torch.no_grad():
+        x, _ = next(iter(config.validation_loader))
+        x = models.moveTo(x, config.device)
+        latencies = []
+        for _ in range(warmup_runs):
+            _ = config.model(x)
+        for _ in range(runs):
+            start_time = perf_counter()
+            _ = config.model(x)
+            latency = perf_counter() - start_time
+            latencies.append(latency)
+        time_avg_ms = 1000 * np.mean(latencies)
+        time_std_ms = 1000 * np.std(latencies)
     return time_avg_ms, time_std_ms
 
 
