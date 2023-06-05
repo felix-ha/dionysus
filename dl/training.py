@@ -119,14 +119,15 @@ def compute_size(model):
         size_mb = tmp_path.stat().st_size / (1024 * 1024)
     return size_mb
 
-def time_pipeline(model, data_loader, runs=100, warmup_runs=10):
-    x, _ = next(iter(data_loader))
+def time_pipeline(config, runs=100, warmup_runs=10):
+    x, _ = next(iter(config.validation_loader))
+    x = models.moveTo(x, config.device)
     latencies = []
     for _ in range(warmup_runs):
-        _ = model(x)
+        _ = config.model(x)
     for _ in range(runs):
         start_time = perf_counter()
-        _ = model(x)
+        _ = config.model(x)
         latency = perf_counter() - start_time
         latencies.append(latency)
     time_avg_ms = 1000 * np.mean(latencies)
@@ -226,7 +227,7 @@ def train(config: TrainingConfig):
     size_mb = compute_size(config.model)
     logging.info(f"Model size (MB) - {size_mb:.4f}")
 
-    time_avg_ms, time_std_ms = time_pipeline(config.model, config.validation_loader)
+    time_avg_ms, time_std_ms = time_pipeline(config)
     logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
 
     if config.zip_result:
