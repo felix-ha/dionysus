@@ -45,6 +45,8 @@ class TrainingConfig:
     def __post_init__(self):
         if self.optimizer == "SGD": 
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        elif self.optimizer == "AdamW": 
+            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
         if self.save_model:
             current_time = datetime.datetime.now()
