@@ -151,6 +151,7 @@ def run_mnist():
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
                                    optimizer="AdamW",
+                                   device="gpu",
                                    save_model=True,
                                    save_path=os.path.join(os.getcwd(), "runs"),
                                    model_name="multiclass", 
