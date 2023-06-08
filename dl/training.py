@@ -219,11 +219,12 @@ def train(config: TrainingConfig):
         report = classification_report(y_true, y_pred, target_names=config.class_names, zero_division=0)
         logging.info("classification report: ")
         logging.info(f"\n{report}")
-
-        save_loss(results, config.save_path_final)
-        save_metrics(results, config.save_path_final, "training")
-        save_metrics(results, config.save_path_final, "validation")
-        save_confusion_matrix(validation_result, labels=config.class_names, results_path=config.save_path_final)
+        
+        if config.save_model:
+            save_loss(results, config.save_path_final)
+            save_metrics(results, config.save_path_final, "training")
+            save_metrics(results, config.save_path_final, "validation")
+            save_confusion_matrix(validation_result, labels=config.class_names, results_path=config.save_path_final)
 
     logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
 
