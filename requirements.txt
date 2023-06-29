@@ -12,3 +12,4 @@ portalocker==2.7.0
 onnx==1.14.0 
 tqdm==4.65.0 
 requests==2.27.1
+optuna==3.2.0 
