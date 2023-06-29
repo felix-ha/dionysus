@@ -54,14 +54,14 @@ class TrainingConfig:
             # TODO fix naming or general handling of saving
             self.save_path_final = Path(self.save_path).joinpath(f"{timestamp}_{self.model_name}")
             self.save_path_final.mkdir(parents=True, exist_ok=False)
-            handlers = [logging.FileHandler(os.path.join(self.save_path_final, constants.LOG_FILE), mode='w'), logging.StreamHandler()]
-        else: 
-            handlers =  [logging.StreamHandler()]
+            logfile = os.path.join(self.save_path_final, constants.LOG_FILE)
+        else:
+            logfile = constants.LOG_FILE
 
         logging.basicConfig(
             format='%(asctime)s - %(message)s',
             level=logging.INFO,
-            handlers=handlers
+            handlers=logging.FileHandler(logfile, mode='w')
             )
 
         if self.device == "gpu" or self.device == torch.device("cuda:0"):
