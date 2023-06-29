@@ -61,8 +61,8 @@ class TrainingConfig:
         logging.basicConfig(
             format='%(asctime)s - %(message)s',
             level=logging.INFO,
-            handlers=[logging.FileHandler(logfile, mode='w'),
-            force=True]
+            handlers=[logging.FileHandler(logfile, mode='w')],
+            force=True
             )
 
         if self.device == "gpu" or self.device == torch.device("cuda:0"):
