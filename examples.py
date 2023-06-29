@@ -658,7 +658,7 @@ def run_multiclass(stratify, weighting, name):
     loss_func = nn.CrossEntropyLoss(weights_loss.float())
 
     train_config = TrainingConfig(model=model,
-                                  epochs=500,
+                                  epochs=10,
                                    loss_func=loss_func, 
                                    training_loader=training_loader, 
                                    validation_loader=validation_loader,
@@ -673,8 +673,8 @@ def run_multiclass(stratify, weighting, name):
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
 
+def run():
+    run_multiclass(True, True, "test")
 
 if __name__ == "__main__": 
-   # run_multiclass(stratify=False, weighting=False, name="multiclass_none_none")
-   # run_multiclass(stratify=True, weighting=False, name="multiclass_stratify_none")
-    run_multiclass(stratify=True, weighting=True, name="multiclass_stratify_weights")
+    run()
