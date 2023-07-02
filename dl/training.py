@@ -187,6 +187,7 @@ def train(config: TrainingConfig):
     for epoch in tqdm(range(config.epochs), desc="epoch", disable = not config.progress_bar):
         config.model = config.model.train()
         epoch_time, _, x_sample = run_epoch(config, results, epoch, prefix="training")
+        x_sample = x_sample[0, :].unsqueeze(0)
         time_training += epoch_time
 
         if config.validation_loader is not None:
