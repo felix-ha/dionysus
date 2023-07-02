@@ -157,6 +157,7 @@ def save_checkpoint(epoch, config, results, validation_result, x_sample):
     logging.info("saved result dict")
 
     try: 
+        config.model.eval()
         torch.onnx.export(config.model, x_sample, os.path.join(save_path, "model.onnx"), input_names=["features"], output_names=["logits"])
         logging.info("saved onnx model")
     except:
