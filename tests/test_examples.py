@@ -18,6 +18,8 @@ class Test(unittest.TestCase):
         run_GPT1()
     def test_GPT2(self):
         run_GPT2()
+    def test_custom_loss(self):
+        custom_loss()
 
 if __name__ == '__main__':
     unittest.main() 

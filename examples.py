@@ -14,6 +14,7 @@ from dl.training import TrainingConfig, train, cross_entropy_language_model, zip
 from dl.data import *
 from dl.models import *
 import dl.custom_models as cm
+import dl.loss as loss
 
 import os
 import logging
@@ -48,7 +49,37 @@ def feadforward_moon():
     
     logging.info(f"start training of model: {train_config.model_name}")
     train(train_config)
-   
+
+def custom_loss():
+    from sklearn.datasets import make_moons
+
+    X_train, y_train = make_moons(n_samples=10, noise=0.1)
+    X_validation, y_validation = make_moons(n_samples=5, noise=0.1)
+    train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
+                                torch.tensor(y_train, dtype=torch.long))
+    validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
+                                        torch.tensor(y_validation, dtype=torch.long))
+    training_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=32)
+
+    in_features = 2
+    out_features = 2
+    model = nn.Linear(in_features, out_features)
+    loss_func = loss.CrossEntropyLoss()
+
+    train_config = TrainingConfig(model=model,
+                                epochs=5,
+                                loss_func=loss_func, 
+                                training_loader=training_loader, 
+                                validation_loader=validation_loader,
+                                save_model=False,
+                                save_path=os.path.join(os.getcwd(), "runs"),
+                                model_name="ffw_moon_custom_loss", 
+                                progress_bar=False)
+    
+    logging.info(f"start training of model: {train_config.model_name}")
+    train(train_config)
+    
 
 # Karparthy
 
@@ -677,4 +708,63 @@ def run():
     run_multiclass(True, True, "test")
 
 if __name__ == "__main__": 
-    run()
+    from sklearn.datasets import fetch_covtype, make_classification
+    #pdf = fetch_covtype(as_frame=True)
+
+    stratify = True
+    weighting = True
+
+    n_features = 4
+    n_classes = 5
+    weights = [0.75, 0.1, 0.05, 0.08, 0.02]
+
+    X, y = make_classification(n_samples=15000, 
+                                n_features = n_features, 
+                                n_redundant = 0,
+                                n_classes=n_classes, 
+                                n_clusters_per_class=1,
+                                n_informative=3, 
+                                class_sep = 1.2,
+                                random_state=123,
+                                weights=weights)
+    strat_val = y if stratify else None
+    X_train, X_validation, y_train, y_validation = train_test_split(
+        X, y, test_size=0.2, stratify=strat_val, random_state=123)
+    
+    train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
+                                torch.tensor(y_train, dtype=torch.long))
+    validation_dataset = TensorDataset(torch.tensor(X_validation, dtype=torch.float32),
+                                        torch.tensor(y_validation, dtype=torch.long))
+    training_loader = DataLoader(train_dataset, batch_size=256, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=256)
+
+
+    model = nn.Sequential(nn.Linear(n_features, 15), 
+                          nn.Tanh(), nn.Dropout(0.5),
+                          nn.Linear(15, 15), 
+                         nn.Tanh(), nn.Dropout(0.5),
+                            nn.Linear(15, n_classes)) 
+    
+    weights_loss = 1 / torch.tensor(weights) if weighting else None
+    #weights_loss = torch.tensor(compute_class_weight(class_weight='balanced', classes=np.unique(y), y=y)) if weighting else None
+    loss_func = nn.CrossEntropyLoss(weights_loss.float())
+
+    train_config = TrainingConfig(model=model,
+                                  epochs=10,
+                                   loss_func=loss_func, 
+                                   training_loader=training_loader, 
+                                   validation_loader=validation_loader,
+                                   save_model=True,
+                                   save_path=os.path.join(os.getcwd(), "runs"),
+                                   model_name='multiclass', 
+                                   classification_metrics = True,
+                                   class_names = ['A', 'B', 'C', 'D', 'E'],
+                                   progress_bar=False,
+                                   zip_result=True)
+    
+    logging.info(f"start training of model: {train_config.model_name}")
+    train(train_config)
+
+
+    print("done")
+
