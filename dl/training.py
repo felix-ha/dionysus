@@ -20,7 +20,14 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.dummy import DummyClassifier
 from dataclasses import dataclass
-from . import constants, models
+from . import constants, models, loss
+
+
+@dataclass
+class DistillationConfig:
+    teacher: any
+    temperature: float = 1.0
+    alpha: float = 0.5
 
 
 @dataclass
@@ -41,6 +48,7 @@ class TrainingConfig:
     class_names: list = None
     progress_bar: bool = True
     checkpoint_epochs: list[int] = None
+    distillation_config: DistillationConfig = None
 
     def __post_init__(self):
         if self.optimizer == "SGD": 
@@ -73,6 +81,13 @@ class TrainingConfig:
             logging.info(f"using device {self.device}")
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
+
+        if self.distillation_config is not None:
+            self.loss_func = loss.DistilationLoss(
+                self.distillation_config.teacher,
+                self.distillation_config.temperature,
+                self.distillation_config.alpha,
+            )
 
 
 def save_loss(results_pd, results_path):
@@ -258,8 +273,12 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         x = models.moveTo(x, config.device)
         y = models.moveTo(y, config.device)
 
-        y_hat = config.model(x) 
-        loss = config.loss_func(y_hat, y)
+        y_hat = config.model(x)
+
+        if config.distillation_config is not None: 
+            loss = config.loss_func(y_hat, y, x)
+        else:
+            loss = config.loss_func(y_hat, y)
 
         if config.model.training:
             loss.backward()

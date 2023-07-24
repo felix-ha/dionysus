@@ -14,13 +14,13 @@ class DistilationLoss:
         self.alpha = alpha
         self.loss_func = nn.CrossEntropyLoss()
 
-    def __call__(self, input, target):
-        return self.forward(input, target)
+    def __call__(self, input, target, batch):
+        return self.forward(input, target, batch)
 
-    def forward(self, input, target):
+    def forward(self, input, target, batch):
         self.teacher.eval()
         with torch.no_grad():
-            teacher_logits = self.teacher(input)
+            teacher_logits = self.teacher(batch)
 
         teacher_sm = F.softmax(teacher_logits / self.temperature, dim=-1)
         student_sm = F.softmax(input, dim=-1)

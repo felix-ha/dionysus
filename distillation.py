@@ -7,7 +7,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
-from dl.training import train, TrainingConfig
+from dl.training import train, TrainingConfig, DistillationConfig
 from dl.loss import DistilationLoss
 
 
@@ -86,14 +86,14 @@ n_classes = 3
 training_loader, validation_loader = get_dataloader(n_features, n_classes)
 teacher = train_teacher(n_features, n_classes, training_loader, validation_loader)
 
-distilation_loss = DistilationLoss(teacher, temperature=2, alpha=0.5)
-
 student = nn.Sequential(nn.Linear(n_features, 8), nn.ReLU(), nn.Linear(8, n_classes))
+
+distilation_config = DistillationConfig(teacher=teacher, temperature=2, alpha=0.5)
 
 train_config = TrainingConfig(
     model=student,
     epochs=2,
-    loss_func=distilation_loss,
+    loss_func=None,
     training_loader=training_loader,
     validation_loader=validation_loader,
     save_model=True,
@@ -103,6 +103,7 @@ train_config = TrainingConfig(
     class_names=["A", "B", "C"],
     progress_bar=True,
     zip_result=False,
+    distillation_config=distilation_config
 )
 
 logging.info(f"start training of model: {train_config.model_name}")
