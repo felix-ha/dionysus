@@ -4,10 +4,6 @@ import torch.nn.functional as F
 
 
 class DistilationLoss:
-    """
-    Class is just used for testing.
-    """
-
     def __init__(self, teacher, temperature, alpha):
         self.teacher = teacher
         self.temperature = temperature
@@ -22,11 +18,11 @@ class DistilationLoss:
         with torch.no_grad():
             teacher_logits = self.teacher(batch)
 
-        teacher_sm = F.softmax(teacher_logits / self.temperature, dim=-1)
-        student_sm = F.softmax(input, dim=-1)
+        teacher_sm_log = F.log_softmax(teacher_logits / self.temperature, dim=-1)
+        student_sm = F.softmax(input / self.temperature, dim=-1)
 
         loss_kd = self.temperature**2 * F.kl_div(
-            teacher_sm, student_sm, log_target=True, reduction="sum"
+            teacher_sm_log, student_sm, reduction="batchmean"
         )
         loss_ce = self.loss_func(input, target)
 

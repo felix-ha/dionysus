@@ -46,10 +46,10 @@ def train_teacher(n_features, n_classes, training_loader, validation_loader):
     nn.Flatten(),
     nn.Linear(n_features, 1200),
     nn.ReLU(),
-    nn.Dropout(p=0.5),
+    nn.BatchNorm1d(1200),
     nn.Linear(1200, 1200),
     nn.ReLU(),
-    nn.Dropout(p=0.5),
+    nn.BatchNorm1d(1200),
     nn.Linear(1200, n_classes),
 )
 
@@ -63,7 +63,7 @@ def train_teacher(n_features, n_classes, training_loader, validation_loader):
         validation_loader=validation_loader,
         save_model=True,
         save_path=os.path.join(os.getcwd(), "runs"),
-        model_name="teacher_dropout",
+        model_name="teacher_batchnorm",
         classification_metrics=True,
         class_names=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
         progress_bar=True,
@@ -90,7 +90,7 @@ distilation_config = DistillationConfig(teacher=teacher, temperature=2, alpha=0.
 
 train_config = TrainingConfig(
     model=student,
-    epochs=5,
+    epochs=10,
     loss_func=None,
     training_loader=training_loader,
     validation_loader=validation_loader,
