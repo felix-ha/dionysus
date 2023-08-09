@@ -255,6 +255,8 @@ def train(config: TrainingConfig):
     if config.zip_result:
         zip_results(config)
 
+    return results
+
 
 
 
