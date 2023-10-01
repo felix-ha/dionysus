@@ -3,7 +3,7 @@ requires = ["setuptools>=68.2.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dl-trainer"
+name = "dionysus-trainer"
 version = "0.0.3"
 description = "Training neural networks"
 readme = "README.md"
@@ -19,4 +19,4 @@ dependencies = {file = ["requirements.txt"]}
 dev = ["pytest", "flake8"]
 
 [project.scripts]
-dl = "dl.__main__:main"
+dionysus = "dionysus.__main__:main"

@@ -2,7 +2,7 @@
 
 set -e
 
-echo "releasing dl"
+echo "releasing dionysus"
 
 python -m build
 twine check dist/*

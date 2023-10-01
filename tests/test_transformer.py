@@ -1,8 +1,8 @@
 import unittest
 import torch
 
-from src.dl.data import *
-from src.dl.custom_models import SimpleTransformerClassifier
+from src.dionysus.data import *
+from src.dionysus.custom_models import SimpleTransformerClassifier
 
 
 class TestTransformer(unittest.TestCase):   

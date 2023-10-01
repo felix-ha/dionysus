@@ -12,10 +12,10 @@ from sklearn.utils.class_weight import compute_class_weight
 import matplotlib.pyplot as plt
 from dataclasses import replace
 
-from dl.training import TrainingConfig, train, cross_entropy_language_model, zip_results
-from dl.data import *
-from dl.models import *
-import dl.custom_models as cm
+from dionysus.training import TrainingConfig, train, cross_entropy_language_model, zip_results
+from dionysus.data import *
+from dionysus.models import *
+import dionysus.custom_models as cm
 
 import os
 import logging

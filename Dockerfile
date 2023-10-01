@@ -14,4 +14,4 @@ ENV PYTHONPATH=".:src/"
 RUN pytest
 
 RUN python -m pip install -e .
-RUN python -m dl "Hello World!"
+RUN python -m dionysus "Hello World!"

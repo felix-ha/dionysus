@@ -1,10 +1,10 @@
 import sys
-import dl
+import dionysus
 
 
 def main():
 
-    print(f"Welcome to dl, version {dl.__version__}")
+    print(f"Welcome to dionysus, version {dionysus.__version__}")
 
     if len(sys.argv) > 1:
         print(sys.argv[1])

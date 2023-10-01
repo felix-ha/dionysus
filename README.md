@@ -1,20 +1,20 @@
-# dl
+# dionysus-trainer
 
 This is just a test release. 
 
 # Installation
 
-From [PyPi](https://pypi.org/project/dl/)
+From [PyPi](https://pypi.org/project/dionysus-trainer/)
 ```
-pip install dl
+pip install dionysus-trainer
 ```
 
 ```bash
-python3 -m pip install git+https://git@github.com/felix-ha/dl.git
+python3 -m pip install git+https://git@github.com/felix-ha/dionysus-trainer.git
 
 # or
-git clone https://github.com/felix-ha/dl.git
-cd dl
+git clone https://github.com/felix-ha/dionysus-trainer.git
+cd dionysus-trainer
 python3 -m pip install -e .
 ```
 

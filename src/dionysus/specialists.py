@@ -10,9 +10,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
-from dl.training import TrainingConfig, train
-from dl.data import *
-from dl.models import *
+from dionysus.training import TrainingConfig, train
+from dionysus.data import *
+from dionysus.models import *
 import logging
 
 

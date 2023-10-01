@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build the Docker image
-        run: docker build . -t felixhau/dl:latest
+        run: docker build . -t felixhau/dionysus:latest
 
   docker_push_latest:
     runs-on: ubuntu-latest
@@ -52,13 +52,13 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build the Docker image
-        run: docker build . -t felixhau/dl:latest
+        run: docker build . -t felixhau/dionysus:latest
 
       - name: Login to Docker registry
         run: docker login -u felixhau -p ${{ secrets.DOCKER_HUB_TOKEN }}
         
       - name: Push to Docker registry
-        run: docker push felixhau/dl:latest
+        run: docker push felixhau/dionysus:latest
 
   release:
     runs-on: ubuntu-latest
@@ -69,13 +69,13 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Build the Docker image
-        run: docker build . -t felixhau/dl:${GITHUB_REF_NAME#v}
+        run: docker build . -t felixhau/dionysus:${GITHUB_REF_NAME#v}
 
       - name: Login to Docker registry
         run: docker login -u felixhau -p ${{ secrets.DOCKER_HUB_TOKEN }}
         
       - name: Push to Docker registry
-        run: docker push felixhau/dl:${GITHUB_REF_NAME#v}
+        run: docker push felixhau/dionysus:${GITHUB_REF_NAME#v}
 
       - name: Create .pypirc
         run: |

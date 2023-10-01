@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.dl.data import *
-from src.dl.models import *
-from src.dl.training import TrainingConfig, train
-from src.dl.constants import CHECKPOINT_FILE
+from src.dionysus.data import *
+from src.dionysus.models import *
+from src.dionysus.training import TrainingConfig, train
+from src.dionysus.constants import CHECKPOINT_FILE
 
 class TestSanityChecks(unittest.TestCase):
     def test_RNN(self):

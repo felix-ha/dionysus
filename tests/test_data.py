@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 
-from src.dl.data import *
+from src.dionysus.data import *
 
 
 class Test(unittest.TestCase):      

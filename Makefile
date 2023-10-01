@@ -1,17 +1,17 @@
 .PHONY: docker_build
 docker_build:
-	docker build . -t dl
+	docker build . -t dionysus
 
 .PHONY: test_release
 test_release: docker_build
-	docker run --name dl_release -dt dl
-	docker exec dl_release /bin/bash ./bin/release_testpypi.sh
-	docker stop dl_release
-	docker rm dl_release
+	docker run --name dionysus_release -dt dionysus
+	docker exec dionysus_release /bin/bash ./bin/release_testpypi.sh
+	docker stop dionysus_release
+	docker rm dionysus_release
 
 .PHONY: release
 release: docker_build
-	docker run --name dl_release -dt dl
-	docker exec dl_release /bin/bash ./bin/release.sh
-	docker stop dl_release
-	docker rm dl_release
+	docker run --name dionysus_release -dt dionysus
+	docker exec dionysus_release /bin/bash ./bin/release.sh
+	docker stop dionysus_release
+	docker rm dionysus_release

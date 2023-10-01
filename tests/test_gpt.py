@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from src.dl.models import Config, GPT1
+from src.dionysus.models import Config, GPT1
 
 
 class TestGPT(unittest.TestCase):
