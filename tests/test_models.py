@@ -5,14 +5,11 @@ import tempfile
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-import os
-import sys
 
-sys.path.insert(0, os.getcwd())
-from dl.data import *
-from dl.models import *
-from dl.training import TrainingConfig, train
-from dl.constants import CHECKPOINT_FILE
+from src.dl.data import *
+from src.dl.models import *
+from src.dl.training import TrainingConfig, train
+from src.dl.constants import CHECKPOINT_FILE
 
 class TestSanityChecks(unittest.TestCase):
     def test_RNN(self):

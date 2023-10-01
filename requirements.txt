@@ -3,8 +3,7 @@ pandas==1.5.3
 matplotlib==3.7.1
 seaborn==0.12.2
 scikit-learn==1.2.2
--f https://download.pytorch.org/whl/torch_stable.html     
-torch==2.0.1+cpu
+torch==2.0.1
 torchvision==0.15.2 
 torchtext==0.15.2 
 sentencepiece==0.1.99 

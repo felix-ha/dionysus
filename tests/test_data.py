@@ -1,10 +1,8 @@
 import unittest
 import tempfile
 import os
-import sys
 
-sys.path.insert(0, os.getcwd())
-from dl.data import *
+from src.dl.data import *
 
 
 class Test(unittest.TestCase):      

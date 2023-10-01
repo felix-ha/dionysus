@@ -1,0 +1,96 @@
+name: CICD
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10"]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Test with pytest
+      run: |
+        export PYTHONPATH=".:src/"
+        pytest
+
+  docker_build:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+  
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build the Docker image
+        run: docker build . -t felixhau/dl:latest
+
+  docker_push_latest:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build the Docker image
+        run: docker build . -t felixhau/dl:latest
+
+      - name: Login to Docker registry
+        run: docker login -u felixhau -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        
+      - name: Push to Docker registry
+        run: docker push felixhau/dl:latest
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: "startsWith(github.ref, 'refs/tags/')"
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build the Docker image
+        run: docker build . -t felixhau/dl:${GITHUB_REF_NAME#v}
+
+      - name: Login to Docker registry
+        run: docker login -u felixhau -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        
+      - name: Push to Docker registry
+        run: docker push felixhau/dl:${GITHUB_REF_NAME#v}
+
+      - name: Create .pypirc
+        run: |
+          rm ./bin/.pypirc
+          touch ./bin/.pypirc
+          echo "
+          [pypi]
+          username = __token__
+          password = ${{ secrets.PYPI_TOKEN }}
+
+          [testpypi]
+          username = __token__
+          password = ${{ secrets.TEST_PYPI_TOKEN }}
+          " > ./bin/.pypirc
+
+      - name: Release PyPi
+        run:
+          make release

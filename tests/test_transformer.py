@@ -1,12 +1,8 @@
 import unittest
-import os
-import sys
-
 import torch
 
-sys.path.insert(0, os.getcwd())
-from dl.data import *
-from dl.custom_models import SimpleTransformerClassifier
+from src.dl.data import *
+from src.dl.custom_models import SimpleTransformerClassifier
 
 
 class TestTransformer(unittest.TestCase):   
@@ -52,3 +48,4 @@ class TestTransformer(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main() 
+    

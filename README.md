@@ -1,7 +1,13 @@
 # dl
 
+This is just a test release. 
 
-### Installation
+# Installation
+
+From [PyPi](https://pypi.org/project/dl/)
+```
+pip install dl
+```
 
 ```bash
 python3 -m pip install git+https://git@github.com/felix-ha/dl.git
