@@ -297,7 +297,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     time_elapsed = end-start
     if not config.progress_bar:
         if prefix == "training":
-            logging.info(f"finished epoch {epoch-1}, took {(time_elapsed / 60 ):.3f} minutes")
+            logging.info(f"finished epoch {epoch+1}, took {(time_elapsed / 60 ):.3f} minutes")
 
     if config.epochs - 1 == epoch and prefix == "validation":
         logging.info(f"last {epoch}")
