@@ -20,7 +20,8 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.dummy import DummyClassifier
 from dataclasses import dataclass
-from . import constants, models
+from . import constants
+from . import utils
 
 
 @dataclass
@@ -126,7 +127,7 @@ def time_pipeline(config, runs=100, warmup_runs=10):
     config.model = config.model.eval()
     with torch.no_grad():
         x, _ = next(iter(config.validation_loader))
-        x = models.moveTo(x, config.device)
+        x = utils.moveTo(x, config.device)
         latencies = []
         for _ in range(warmup_runs):
             _ = config.model(x)
@@ -256,8 +257,8 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     y_pred = []
     start = time.time()
     for x, y in tqdm(data_loader, desc="batch", leave=False, disable = not config.progress_bar):      
-        x = models.moveTo(x, config.device)
-        y = models.moveTo(y, config.device)
+        x = utils.moveTo(x, config.device)
+        y = utils.moveTo(y, config.device)
 
         y_hat = config.model(x) 
         loss = config.loss_func(y_hat, y)

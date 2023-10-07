@@ -15,6 +15,7 @@ class Test(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
 
             # Test Training
+            # TODO test checkpoint_epochs
             n_features = 4
             n_classes = 3
             weights = [0.8, 0.15, 0.05]
