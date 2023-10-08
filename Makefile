@@ -19,3 +19,8 @@ release: docker_build
 .PHONY: flake8
 flake8:
 	flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --show-source --statistics
+
+.PHONY: pre_commit
+pre_commit:
+	pytest --exitfirst
+	black . 
