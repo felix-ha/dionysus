@@ -18,4 +18,3 @@ def moveTo(obj, device):
         return to_ret
     else:
         return obj
-    

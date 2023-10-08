@@ -3,7 +3,6 @@ import dionysus
 
 
 def main():
-
     print(f"Welcome to dionysus, version {dionysus.__version__}")
 
     if len(sys.argv) > 1:
