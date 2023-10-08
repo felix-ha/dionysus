@@ -308,18 +308,6 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
 
     return time_elapsed, validation_result, x
 
-def cross_entropy_language_model(logits, targets):
-    """
-    Removes the time dimension for logits and targets and computes the cross entropy loss
-    For the F.cross_entropy function, the inputs are predicted unnormalized logits and output are ground truth class indices or class probabilities
-    """
-    B, T, C = logits.shape
-    logits = logits.view(B*T, C)
-    targets = targets.view(B*T)
-    loss = F.cross_entropy(logits, targets)
-    return loss
-
-
 # TODO Whole folder structure is saved atm, the results folder should be the only parent dir 
 
 def zip_results(train_config):
