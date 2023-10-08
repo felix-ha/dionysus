@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
-from dionysus import constants, utils
+from dionysus import constants
 
 
 import pandas as pd
@@ -99,7 +99,7 @@ def time_pipeline(config, runs=100, warmup_runs=10):
     config.model = config.model.eval()
     with torch.no_grad():
         x, _ = next(iter(config.validation_loader))
-        x = utils.moveTo(x, config.device)
+        x = moveTo(x, config.device)
         latencies = []
         for _ in range(warmup_runs):
             _ = config.model(x)
