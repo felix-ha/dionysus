@@ -100,3 +100,5 @@ class Test(unittest.TestCase):
             with torch.no_grad():
                 model_inference.eval()
                 _ = model_inference(torch.tensor(X_validation, dtype=torch.float32))
+
+            # TODO test continue training
