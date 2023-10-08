@@ -15,3 +15,7 @@ release: docker_build
 	docker exec dionysus_release /bin/bash ./bin/release.sh
 	docker stop dionysus_release
 	docker rm dionysus_release
+
+.PHONY: flake8
+flake8:
+	flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --show-source --statistics
