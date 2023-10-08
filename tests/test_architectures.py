@@ -2,7 +2,7 @@ import unittest
 import pytest
 import torch
 import torch.nn.functional as F
-from src.dionysus.architectures import LeNet5, AlexNet
+from src.dionysus.architectures import LeNet5, AlexNet, VGGNet
 
 
 class Test(unittest.TestCase):
@@ -17,3 +17,6 @@ class Test(unittest.TestCase):
 
     def test_alexnet(self):
         self.run_inference_model(AlexNet())
+
+    def test_vggnet(self):
+        self.run_inference_model(VGGNet())
