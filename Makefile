@@ -22,5 +22,6 @@ flake8:
 
 .PHONY: pre_commit
 pre_commit:
-	pytest --exitfirst
 	black . 
+	pytest --exitfirst
+	
