@@ -1,5 +1,3 @@
-"""Based on: Inside Deep Learning"""
-
 import time
 from tqdm.autonotebook import tqdm
 import os
@@ -9,7 +7,6 @@ import logging
 
 import numpy as np
 import torch
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from sklearn.metrics import (
     classification_report,
@@ -86,14 +83,13 @@ class TrainingConfig:
             logging.info(f"device {self.device} is not available, using cpu instead")
 
 
-def train(config: TrainingConfig):
-    logging.info("starting training")
+def _setup_results(config):
     to_track = ["epoch", "epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
 
     if config.classification_metrics:
-        for name in ["accuracy", "macro_recall", "macro_precision", "macro_f1score"]:
+        for name in constants.CLASSIFICATION_METRICS:
             to_track.append("training_" + name)
             if config.validation_loader is not None:
                 to_track.append("validation_" + name)
@@ -102,8 +98,47 @@ def train(config: TrainingConfig):
     for item in to_track:
         results[item] = []
 
-    time_training = 0
+    return results
+
+
+def create_classifcation_report(results, validation_result, config):
+    y_true, y_pred = validation_result
+
+    cm = confusion_matrix(y_true, y_pred)
+    logging.info("confusion matrix: ")
+    logging.info(f"\n{cm}")
+
+    dummy_clf = DummyClassifier(strategy="most_frequent")
+    dummy_clf.fit(np.zeros(len(y_true)), y_true)
+    y_pred_dummy = dummy_clf.predict(np.zeros(len(y_true)))
+    dummy_report = classification_report(
+        y_true, y_pred_dummy, target_names=config.class_names, zero_division=0
+    )
+    logging.info("classification report baseline: ")
+    logging.info(f"\n{dummy_report}")
+
+    report = classification_report(
+        y_true, y_pred, target_names=config.class_names, zero_division=0
+    )
+    logging.info("classification report: ")
+    logging.info(f"\n{report}")
+
+    if config.save_model:
+        save_loss(results, config.save_path_final)
+        save_metrics(results, config.save_path_final, "training")
+        save_metrics(results, config.save_path_final, "validation")
+        save_confusion_matrix(
+            validation_result,
+            labels=config.class_names,
+            results_path=config.save_path_final,
+        )
+
+
+def train(config: TrainingConfig):
+    results = _setup_results(config)
     config.model.to(config.device)
+    time_training = 0
+    logging.info("starting training")
     for epoch in tqdm(
         range(config.epochs), desc="epoch", disable=not config.progress_bar
     ):
@@ -129,36 +164,7 @@ def train(config: TrainingConfig):
         save_checkpoint("last", config, results, validation_result, x_sample)
 
     if config.classification_metrics:
-        y_true, y_pred = validation_result
-
-        cm = confusion_matrix(y_true, y_pred)
-        logging.info("confusion matrix: ")
-        logging.info(f"\n{cm}")
-
-        dummy_clf = DummyClassifier(strategy="most_frequent")
-        dummy_clf.fit(np.zeros(len(y_true)), y_true)
-        y_pred_dummy = dummy_clf.predict(np.zeros(len(y_true)))
-        dummy_report = classification_report(
-            y_true, y_pred_dummy, target_names=config.class_names, zero_division=0
-        )
-        logging.info("classification report baseline: ")
-        logging.info(f"\n{dummy_report}")
-
-        report = classification_report(
-            y_true, y_pred, target_names=config.class_names, zero_division=0
-        )
-        logging.info("classification report: ")
-        logging.info(f"\n{report}")
-
-        if config.save_model:
-            save_loss(results, config.save_path_final)
-            save_metrics(results, config.save_path_final, "training")
-            save_metrics(results, config.save_path_final, "validation")
-            save_confusion_matrix(
-                validation_result,
-                labels=config.class_names,
-                results_path=config.save_path_final,
-            )
+        create_classifcation_report(results, validation_result, config)
 
     logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
 
@@ -166,14 +172,13 @@ def train(config: TrainingConfig):
     logging.info(f"Model size (MB) - {size_mb:.4f}")
 
     time_avg_ms, time_std_ms = time_pipeline(config)
-    logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +\- {time_std_ms:.2f}")
+    logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +/- {time_std_ms:.2f}")
 
     if config.zip_result:
         zip_results(config)
 
 
 def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
-    # TODO move strings to config
     if prefix == "training":
         data_loader = config.training_loader
     if prefix == "validation":
@@ -199,21 +204,16 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         running_loss.append(loss.item())
 
         if config.classification_metrics and isinstance(y, torch.Tensor):
-            # moving labels & predictions back to CPU for computing / storing predictions
             labels = y.detach().cpu().numpy()
             y_hat = y_hat.detach().cpu().numpy()
-            # add to predictions so far
             y_true.extend(labels.tolist())
             y_pred.extend(y_hat.tolist())
 
     end = time.time()
 
     y_pred = np.asarray(y_pred)
-    if (
-        len(y_pred.shape) == 2 and y_pred.shape[1] > 1
-    ):  # We have a classification problem, convert to labels
+    if len(y_pred.shape) == 2 and y_pred.shape[1] > 1:
         y_pred = np.argmax(y_pred, axis=1)
-    # Else, we assume we are working on a regression problem
 
     if config.classification_metrics:
         report_dict = classification_report(
