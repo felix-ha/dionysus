@@ -1,6 +1,5 @@
 import tempfile
 from time import perf_counter
-import zipfile
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -16,6 +15,16 @@ import torch
 import logging
 import os
 from pathlib import Path
+import tarfile
+
+
+def tar_folder(config):
+    """
+    Creates a .tar file for a given folder
+    """
+    path = config.save_path_final
+    with tarfile.open(f"{path}.tar", "w") as tar:
+        tar.add(path, arcname=os.path.basename(path))
 
 
 def moveTo(obj, device):
@@ -75,23 +84,6 @@ def save_checkpoint(epoch, config, results, validation_result, x_sample):
 
     if epoch == "last":
         logging.info(f"results:\n{results_pd}")
-
-
-# TODO Whole folder structure is saved atm, the results folder should be the only parent dir
-def zip_results(train_config):
-    folder_name = Path(train_config.save_path_final).parts[-1]
-    zip_file_name = Path(train_config.save_path_final).parent.joinpath(
-        f"{folder_name}.zip"
-    )
-
-    zip_file = zipfile.ZipFile(zip_file_name, "w", zipfile.ZIP_DEFLATED)
-    zipdir(train_config.save_path_final, zip_file)
-
-
-def zipdir(path, ziph):
-    for root, _, files in os.walk(path):
-        for file in files:
-            ziph.write(os.path.join(root, file))
 
 
 def time_pipeline(config, runs=100, warmup_runs=10):

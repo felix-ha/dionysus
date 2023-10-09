@@ -59,7 +59,7 @@ class Test(unittest.TestCase):
                 save_model=True,
                 classification_metrics=True,
                 class_names=["A", "B", "C"],
-                zip_result=True,
+                tar_result=True,
                 save_path=save_path,
                 model_name="ffw_moon",
                 progress_bar=False,
@@ -74,6 +74,8 @@ class Test(unittest.TestCase):
             assert subdirs[1].endswith(
                 "ffw_moon"
             ), f"results directory: {subdirs[1]} was no created"
+            tar_file = subdirs[1] + ".tar"
+            assert os.path.isfile(tar_file), f"tar file: {tar_file} was not created"
             assert "info.log" in os.listdir(subdirs[1]), "logfile was not created"
             assert "cm.png" in os.listdir(
                 subdirs[1]

@@ -22,7 +22,7 @@ from dionysus.utils import (
     save_loss,
     save_metrics,
     time_pipeline,
-    zip_results,
+    tar_folder,
 )
 from . import constants
 from . import utils
@@ -40,7 +40,7 @@ class TrainingConfig:
     device: str = "cpu"
     save_model: bool = False
     colab: bool = False
-    zip_result: bool = False
+    tar_result: bool = False
     save_path: str = None
     model_name: str = None
     classification_metrics: dict = False
@@ -174,8 +174,8 @@ def train(config: TrainingConfig):
     time_avg_ms, time_std_ms = time_pipeline(config)
     logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +/- {time_std_ms:.2f}")
 
-    if config.zip_result:
-        zip_results(config)
+    if config.tar_result:
+        tar_folder(config)
 
 
 def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):

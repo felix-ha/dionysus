@@ -1,4 +1,4 @@
-# !pip install git+https://github.com/felix-ha/dionysus-trainer.git@implementation
+# !pip install git+https://github.com/felix-ha/dionysus-trainer.git@develop
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -82,7 +82,7 @@ train_config = TrainingConfig(
     colab=True,
     classification_metrics=True,
     class_names=[str(i) for i in range(0, 10)],
-    zip_result=True,
+    tar_result=True,
     save_path=save_path,
     model_name="LeNet-5",
     progress_bar=False,
