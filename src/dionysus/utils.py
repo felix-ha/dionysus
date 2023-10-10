@@ -4,7 +4,12 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import seaborn as sns
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.dummy import DummyClassifier
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    classification_report,
+    confusion_matrix,
+)
 from dionysus import constants
 
 
@@ -50,9 +55,8 @@ def moveTo(obj, device):
 
 
 def save_checkpoint(epoch, config, results, validation_result, x_sample):
-    subdirectory = "last" if epoch == "last" else f"epoch_{epoch}"
-    save_path = Path(config.save_path_final).joinpath(subdirectory)
-    save_path.mkdir(parents=True, exist_ok=False)
+    save_path = Path(config.save_path_final).joinpath("last")
+    save_path.mkdir(parents=True, exist_ok=True)
 
     results_pd = pd.DataFrame.from_dict(results)
 
@@ -82,8 +86,11 @@ def save_checkpoint(epoch, config, results, validation_result, x_sample):
     except:
         logging.warn("saving onnx model failed")
 
-    if epoch == "last":
-        logging.info(f"results:\n{results_pd}")
+    if config.classification_metrics:
+        create_classifcation_report(results, validation_result, config)
+
+    if config.tar_result:
+        tar_folder(config)
 
 
 def time_pipeline(config, runs=100, warmup_runs=10):
@@ -168,3 +175,36 @@ def save_loss(results_pd, results_path):
     fig = plot.get_figure()
     fig.savefig(results_path.joinpath("loss.png"))
     plt.close()
+
+
+def create_classifcation_report(results, validation_result, config):
+    y_true, y_pred = validation_result
+
+    cm = confusion_matrix(y_true, y_pred)
+    logging.info("confusion matrix: ")
+    logging.info(f"\n{cm}")
+
+    dummy_clf = DummyClassifier(strategy="most_frequent")
+    dummy_clf.fit(np.zeros(len(y_true)), y_true)
+    y_pred_dummy = dummy_clf.predict(np.zeros(len(y_true)))
+    dummy_report = classification_report(
+        y_true, y_pred_dummy, target_names=config.class_names, zero_division=0
+    )
+    logging.info("classification report baseline: ")
+    logging.info(f"\n{dummy_report}")
+
+    report = classification_report(
+        y_true, y_pred, target_names=config.class_names, zero_division=0
+    )
+    logging.info("classification report: ")
+    logging.info(f"\n{report}")
+
+    if config.save_model:
+        save_loss(results, config.save_path_final)
+        save_metrics(results, config.save_path_final, "training")
+        save_metrics(results, config.save_path_final, "validation")
+        save_confusion_matrix(
+            validation_result,
+            labels=config.class_names,
+            results_path=config.save_path_final,
+        )

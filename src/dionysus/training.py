@@ -6,23 +6,18 @@ import datetime
 import logging
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import (
     classification_report,
-    confusion_matrix,
 )
-from sklearn.dummy import DummyClassifier
 from dataclasses import dataclass
 
 from dionysus.utils import (
     compute_size,
     save_checkpoint,
-    save_confusion_matrix,
-    save_loss,
-    save_metrics,
     time_pipeline,
-    tar_folder,
 )
 from . import constants
 from . import utils
@@ -46,7 +41,7 @@ class TrainingConfig:
     classification_metrics: dict = False
     class_names: list = None
     progress_bar: bool = True
-    checkpoint_epochs: list[int] = None
+    checkpoint_step: int = None  # save every checkpoint_step epoch
 
     def __post_init__(self):
         if self.optimizer == "SGD":
@@ -101,39 +96,6 @@ def _setup_results(config):
     return results
 
 
-def create_classifcation_report(results, validation_result, config):
-    y_true, y_pred = validation_result
-
-    cm = confusion_matrix(y_true, y_pred)
-    logging.info("confusion matrix: ")
-    logging.info(f"\n{cm}")
-
-    dummy_clf = DummyClassifier(strategy="most_frequent")
-    dummy_clf.fit(np.zeros(len(y_true)), y_true)
-    y_pred_dummy = dummy_clf.predict(np.zeros(len(y_true)))
-    dummy_report = classification_report(
-        y_true, y_pred_dummy, target_names=config.class_names, zero_division=0
-    )
-    logging.info("classification report baseline: ")
-    logging.info(f"\n{dummy_report}")
-
-    report = classification_report(
-        y_true, y_pred, target_names=config.class_names, zero_division=0
-    )
-    logging.info("classification report: ")
-    logging.info(f"\n{report}")
-
-    if config.save_model:
-        save_loss(results, config.save_path_final)
-        save_metrics(results, config.save_path_final, "training")
-        save_metrics(results, config.save_path_final, "validation")
-        save_confusion_matrix(
-            validation_result,
-            labels=config.class_names,
-            results_path=config.save_path_final,
-        )
-
-
 def train(config: TrainingConfig):
     results = _setup_results(config)
     config.model.to(config.device)
@@ -157,14 +119,11 @@ def train(config: TrainingConfig):
         results["epoch"].append(epoch + 1)
         results["epoch_time"].append(epoch_time)
 
-        if config.checkpoint_epochs is not None and epoch in config.checkpoint_epochs:
-            save_checkpoint(epoch, config, results, validation_result, x_sample)
+        if config.checkpoint_step is not None and epoch % config.checkpoint_step == 0:
+            save_checkpoint("last", config, results, validation_result, x_sample)
 
     if config.save_model:
         save_checkpoint("last", config, results, validation_result, x_sample)
-
-    if config.classification_metrics:
-        create_classifcation_report(results, validation_result, config)
 
     logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
 
@@ -174,8 +133,7 @@ def train(config: TrainingConfig):
     time_avg_ms, time_std_ms = time_pipeline(config)
     logging.info(f"Average latency (ms) - {time_avg_ms:.2f} +/- {time_std_ms:.2f}")
 
-    if config.tar_result:
-        tar_folder(config)
+    logging.info(f"results:\n {pd.DataFrame.from_dict(results)}")
 
 
 def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
@@ -233,8 +191,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
                 f"finished epoch {epoch+1}, took {(time_elapsed / 60 ):.3f} minutes"
             )
 
-    if config.epochs - 1 == epoch and prefix == "validation":
-        logging.info(f"last {epoch}")
+    if prefix == "validation":
         validation_result = (y_true, y_pred)
     else:
         validation_result = None

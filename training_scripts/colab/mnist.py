@@ -72,7 +72,7 @@ save_path = "runs"
 
 train_config = TrainingConfig(
     model=model,
-    epochs=10,
+    epochs=25,
     loss_func=loss_func,
     training_loader=training_loader,
     validation_loader=validation_loader,
@@ -86,6 +86,7 @@ train_config = TrainingConfig(
     save_path=save_path,
     model_name="LeNet-5",
     progress_bar=False,
+    checkpoint_step=5,
 )
 
 train(train_config)

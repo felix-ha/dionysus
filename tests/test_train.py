@@ -14,7 +14,6 @@ class Test(unittest.TestCase):
     def test_training(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             # Test Training
-            # TODO test checkpoint_epochs
             n_features = 4
             n_classes = 3
             weights = [0.8, 0.15, 0.05]
@@ -52,7 +51,7 @@ class Test(unittest.TestCase):
 
             train_config = TrainingConfig(
                 model=model,
-                epochs=2,
+                epochs=3,
                 loss_func=loss_func,
                 training_loader=training_loader,
                 validation_loader=validation_loader,
@@ -63,6 +62,7 @@ class Test(unittest.TestCase):
                 save_path=save_path,
                 model_name="ffw_moon",
                 progress_bar=False,
+                checkpoint_step=2,
             )
 
             train(train_config)
