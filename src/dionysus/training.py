@@ -77,6 +77,10 @@ class TrainingConfig:
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
 
+    def loss(self, x, y):
+        y_hat = self.model(x)
+        return self.loss_func(y_hat, y), y_hat
+
 
 def _setup_results(config):
     to_track = ["epoch", "epoch_time", "training_loss"]
@@ -151,8 +155,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         x = utils.moveTo(x, config.device)
         y = utils.moveTo(y, config.device)
 
-        y_hat = config.model(x)
-        loss = config.loss_func(y_hat, y)
+        loss, y_hat = config.loss(x, y)
 
         if config.model.training:
             loss.backward()
