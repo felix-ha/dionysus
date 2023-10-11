@@ -21,6 +21,7 @@ from dionysus.utils import (
 )
 from . import constants
 from . import utils
+from . import loss
 
 
 @dataclass
@@ -80,6 +81,21 @@ class TrainingConfig:
     def loss(self, x, y):
         y_hat = self.model(x)
         return self.loss_func(y_hat, y), y_hat
+
+
+@dataclass
+class DistillConfig(TrainingConfig):
+    teacher: any = None
+    alpha: float = None
+    T: float = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.loss_func = loss.DistillationLoss(self.teacher, self.T, self.alpha)
+
+    def loss(self, x, y):
+        y_hat = self.model(x)
+        return self.loss_func(y_hat, y, x), y_hat
 
 
 def _setup_results(config):
