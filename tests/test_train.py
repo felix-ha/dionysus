@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 
-from src.dionysus.training import train, TrainingConfig
+from src.dionysus.training import train, TrainingConfig, DistillConfig
 
 
 class Test(unittest.TestCase):
@@ -102,5 +102,31 @@ class Test(unittest.TestCase):
             with torch.no_grad():
                 model_inference.eval()
                 _ = model_inference(torch.tensor(X_validation, dtype=torch.float32))
+
+            # test distiller
+
+            distilled_model = nn.Linear(n_features, n_classes)
+
+            distill_config = DistillConfig(
+                model=distilled_model,
+                epochs=2,
+                loss_func=loss_func,
+                training_loader=training_loader,
+                validation_loader=validation_loader,
+                save_model=True,
+                classification_metrics=True,
+                class_names=["A", "B", "C"],
+                tar_result=True,
+                save_path=save_path,
+                model_name="ffw_moon_distilled",
+                progress_bar=False,
+                teacher=model_inference,
+                alpha=0.5,
+                T=2.0,
+            )
+
+            train(distill_config)
+
+            # TODO add asserts for distiller
 
             # TODO test continue training

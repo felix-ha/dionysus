@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from src.dionysus.loss import DistilationLoss
+from src.dionysus.loss import DistillationLoss
 
 
 class Teacher:
@@ -33,7 +33,7 @@ def test_distillation_loss():
     loss_ce = F.cross_entropy(logits_student, torch.tensor([0]))
     loss_expected = alpha * loss_ce + (1 - alpha) * T**2 * loss_kl
 
-    loss_func_distillation = DistilationLoss(teacher, T, alpha)
+    loss_func_distillation = DistillationLoss(teacher, T, alpha)
     loss_actual = loss_func_distillation(logits_student, torch.tensor([0]), batch=x)
 
     assert loss_expected == loss_actual

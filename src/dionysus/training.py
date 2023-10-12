@@ -85,6 +85,7 @@ class TrainingConfig:
 
 @dataclass
 class DistillConfig(TrainingConfig):
+    # TODO: loss_func is needed for the super().__post_init__(), but is overwritten
     teacher: any = None
     alpha: float = None
     T: float = None

@@ -11,6 +11,19 @@ def eps():
     return 1e-10
 
 
+def test_init_distillation_loss():
+    teacher = nn.Linear(10, 10)
+    temperature = 1.0
+    alpha = 0.5
+
+    loss_func = loss.DistillationLoss(teacher, temperature, alpha)
+
+    assert loss_func.teacher == teacher
+    assert loss_func.temperature == temperature
+    assert loss_func.alpha == alpha
+    assert isinstance(loss_func.loss_func, nn.CrossEntropyLoss)
+
+
 def test_single_cross_entropy_loss():
     logits = torch.tensor([[1 / 3, 1 / 3, 1 / 3]])
     y_true = torch.tensor([[0, 0, 1]], dtype=torch.float)
