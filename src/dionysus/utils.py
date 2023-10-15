@@ -86,6 +86,8 @@ def save_checkpoint(epoch, config, results, validation_result, x_sample):
     except:
         logging.warn("saving onnx model failed")
 
+    save_loss(results, config.save_path_final)
+    
     if config.classification_metrics:
         create_classifcation_report(results, validation_result, config)
 
@@ -200,7 +202,6 @@ def create_classifcation_report(results, validation_result, config):
     logging.info(f"\n{report}")
 
     if config.save_model:
-        save_loss(results, config.save_path_final)
         save_metrics(results, config.save_path_final, "training")
         save_metrics(results, config.save_path_final, "validation")
         save_confusion_matrix(
