@@ -35,7 +35,7 @@ class TrainingConfig:
     epochs: int = 2
     device: str = "cpu"
     save_model: bool = False
-    colab: bool = False
+    force_write_logs: bool = False
     tar_result: bool = False
     save_path: str = None
     model_name: str = None
@@ -66,7 +66,7 @@ class TrainingConfig:
             format="%(asctime)s - %(message)s",
             level=logging.INFO,
             handlers=[logging.FileHandler(logfile, mode="w")],
-            force=self.colab,
+            force=self.force_write_logs,
         )
 
         if self.device == "gpu" or self.device == torch.device("cuda:0"):
