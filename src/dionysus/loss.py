@@ -37,13 +37,12 @@ class CrossEntropyLoss:
     """
 
     def __init__(self, reduction="mean"):
-        match reduction:
-            case "sum":
-                self.reduction_func = torch.sum
-            case "mean":
-                self.reduction_func = torch.mean
-            case _:
-                raise NotImplementedError(f"Case {reduction} not implemented")
+        if reduction == "mean":
+            self.reduction_func = torch.mean
+        elif reduction == "sum":
+            self.reduction_func = torch.sum
+        else:
+            raise NotImplementedError(f"Case {reduction} not implemented")
 
     def __call__(self, input, target):
         return self.forward(input, target)
