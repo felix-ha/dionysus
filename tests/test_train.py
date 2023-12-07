@@ -91,7 +91,6 @@ class Test(unittest.TestCase):
             assert subdirs[2].endswith(
                 "ffw_moon/last"
             ), f"results last directory: {subdirs[2]} was no created"
-            assert "model.onnx" in os.listdir(subdirs[2]), "model.onnx was not created"
             assert "model.pt" in os.listdir(subdirs[2]), "model.pt was not created"
 
             # Test Inference

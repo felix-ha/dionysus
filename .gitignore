@@ -1,7 +1,6 @@
 *.pyc
 *.pkl
 *.pt
-*.onnx
 *.log
 venv/*
 .cache/*
