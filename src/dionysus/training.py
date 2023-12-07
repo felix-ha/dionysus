@@ -189,7 +189,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
             y_true.extend(labels.tolist())
             y_pred.extend(y_hat.tolist())
 
-        if config.checkpoint_step_batch is not None and epoch % config.checkpoint_step_batch == 0:
+        if config.checkpoint_step_batch is not None and batch % config.checkpoint_step_batch == 0:
             save_checkpoint_batch(batch, config)
 
     batch += 1
