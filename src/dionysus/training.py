@@ -192,7 +192,8 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         if config.checkpoint_step_batch is not None and batch % config.checkpoint_step_batch == 0:
             save_checkpoint_batch(batch, config)
 
-    batch += 1
+        batch += 1
+        
     end = time.time()
 
     y_pred = np.asarray(y_pred)
