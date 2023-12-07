@@ -54,7 +54,25 @@ def moveTo(obj, device):
         return obj
 
 
-def save_checkpoint(epoch, config, results, validation_result, x_sample):
+def save_checkpoint_batch(batch, config):
+    """
+    Save only model.
+    """
+    save_path = Path(config.save_path_final).joinpath("last")
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    torch.save(
+        {
+            "batch": batch,
+            "model_state_dict": config.model.state_dict(),
+            "optimizer_state_dict": config.optimizer.state_dict()
+        },
+        os.path.join(save_path, constants.CHECKPOINT_FILE),
+    )
+    logging.info("saved result dict")
+
+
+def save_checkpoint(epoch, config, results, validation_result):
     save_path = Path(config.save_path_final).joinpath("last")
     save_path.mkdir(parents=True, exist_ok=True)
 
@@ -72,19 +90,6 @@ def save_checkpoint(epoch, config, results, validation_result, x_sample):
         os.path.join(save_path, constants.CHECKPOINT_FILE),
     )
     logging.info("saved result dict")
-
-    try:
-        config.model.eval()
-        torch.onnx.export(
-            config.model,
-            x_sample,
-            os.path.join(save_path, "model.onnx"),
-            input_names=["features"],
-            output_names=["logits"],
-        )
-        logging.info("saved onnx model")
-    except:
-        logging.warn("saving onnx model failed")
 
     save_loss(results, config.save_path_final)
     

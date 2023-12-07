@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from dionysus.utils import (
     compute_size,
     save_checkpoint,
+    save_checkpoint_batch,
     time_pipeline,
 )
 from . import constants
@@ -43,6 +44,7 @@ class TrainingConfig:
     class_names: list = None
     progress_bar: bool = True
     checkpoint_step: int = None  # save every checkpoint_step epoch
+    checkpoint_step_batch: int = None  # save every checkpoint_step_batch batch
 
     def __post_init__(self):
         if self.optimizer == "SGD":
@@ -126,14 +128,13 @@ def train(config: TrainingConfig):
         range(config.epochs), desc="epoch", disable=not config.progress_bar
     ):
         config.model = config.model.train()
-        epoch_time, _, x_sample = run_epoch(config, results, epoch, prefix="training")
-        x_sample = x_sample[0, :].unsqueeze(0)
+        epoch_time, _ = run_epoch(config, results, epoch, prefix="training")
         time_training += epoch_time
 
         if config.validation_loader is not None:
             config.model = config.model.eval()
             with torch.no_grad():
-                _, validation_result, _ = run_epoch(
+                _, validation_result = run_epoch(
                     config, results, epoch, prefix="validation"
                 )
 
@@ -141,10 +142,10 @@ def train(config: TrainingConfig):
         results["epoch_time"].append(epoch_time)
 
         if config.checkpoint_step is not None and epoch % config.checkpoint_step == 0:
-            save_checkpoint("last", config, results, validation_result, x_sample)
+            save_checkpoint("last", config, results, validation_result)
 
     if config.save_model:
-        save_checkpoint("last", config, results, validation_result, x_sample)
+        save_checkpoint("last", config, results, validation_result)
 
     logging.info(f"finished training, took {(time_training / 60 / 60):.3f} hours")
 
@@ -166,6 +167,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     y_true = []
     y_pred = []
     start = time.time()
+    batch = 1
     for x, y in tqdm(
         data_loader, desc="batch", leave=False, disable=not config.progress_bar
     ):
@@ -187,6 +189,10 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
             y_true.extend(labels.tolist())
             y_pred.extend(y_hat.tolist())
 
+        if config.checkpoint_step_batch is not None and epoch % config.checkpoint_step_batch == 0:
+            save_checkpoint_batch(batch, config)
+
+    batch += 1
     end = time.time()
 
     y_pred = np.asarray(y_pred)
@@ -216,4 +222,4 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     else:
         validation_result = None
 
-    return time_elapsed, validation_result, x
+    return time_elapsed, validation_result
