@@ -188,6 +188,7 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
         data_loader, desc="batch", leave=False, disable=not config.progress_bar
     ):
         if config.batch_to_continue and batch < config.batch_to_continue:
+            batch += 1
             continue
         
         x = utils.moveTo(x, config.device)
