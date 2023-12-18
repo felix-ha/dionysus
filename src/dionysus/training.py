@@ -39,12 +39,16 @@ class TrainingConfig:
     force_write_logs: bool = False
     tar_result: bool = False
     save_path: str = None
+    add_time_to_save_path: bool = False
     model_name: str = None
     classification_metrics: dict = False
     class_names: list = None
     progress_bar: bool = True
     checkpoint_step: int = None  # save every checkpoint_step epoch
     checkpoint_step_batch: int = None  # save every checkpoint_step_batch batch
+    checkpoint_path: str = None #  to continue training 
+    batch_to_continue: int = None # batch to continue training 
+
 
     def __post_init__(self):
         if self.optimizer == "SGD":
@@ -55,11 +59,15 @@ class TrainingConfig:
         if self.save_model:
             current_time = datetime.datetime.now()
             timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+            if self.add_time_to_save_path:
+                directory_name = f'{self.model_name}'
+            else:
+               directory_name = f"{timestamp}_{self.model_name}"
             # TODO fix naming or general handling of saving
             self.save_path_final = Path(self.save_path).joinpath(
-                f"{timestamp}_{self.model_name}"
+                directory_name
             )
-            self.save_path_final.mkdir(parents=True, exist_ok=False)
+            self.save_path_final.mkdir(parents=True, exist_ok=True)
             logfile = os.path.join(self.save_path_final, constants.LOG_FILE)
         else:
             logfile = constants.LOG_FILE
@@ -79,6 +87,14 @@ class TrainingConfig:
             logging.info(f"using device {self.device}")
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
+
+        # TODO also enable to continue training for a given epoch. this is for huge datasets that are only trained on one epoch
+        if self.checkpoint_path:
+            checkpoint = torch.load(self.checkpoint_path)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.batch_to_continue = checkpoint['batch']
+            logging.info(f'continuing training at batch {self.batch_to_continue}')
 
     def loss(self, x, y):
         y_hat = self.model(x)
@@ -171,6 +187,9 @@ def run_epoch(config: TrainingConfig, results: dict, epoch, prefix=""):
     for x, y in tqdm(
         data_loader, desc="batch", leave=False, disable=not config.progress_bar
     ):
+        if config.batch_to_continue and batch < config.batch_to_continue:
+            continue
+        
         x = utils.moveTo(x, config.device)
         y = utils.moveTo(y, config.device)
 

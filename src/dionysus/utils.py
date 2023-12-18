@@ -82,6 +82,7 @@ def save_checkpoint(epoch, config, results, validation_result):
     torch.save(
         {
             "epoch": epoch,
+            "batch": 1,
             "model_state_dict": config.model.state_dict(),
             "optimizer_state_dict": config.optimizer.state_dict(),
             "results": results_pd,
