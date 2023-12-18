@@ -60,9 +60,9 @@ class TrainingConfig:
             current_time = datetime.datetime.now()
             timestamp = current_time.strftime("%Y%m%d_%H%M%S")
             if self.add_time_to_save_path:
-                directory_name = f'{self.model_name}'
+                directory_name = f"{timestamp}_{self.model_name}"
             else:
-               directory_name = f"{timestamp}_{self.model_name}"
+                directory_name = f'{self.model_name}'
             # TODO fix naming or general handling of saving
             self.save_path_final = Path(self.save_path).joinpath(
                 directory_name
