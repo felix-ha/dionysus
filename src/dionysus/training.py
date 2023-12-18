@@ -90,7 +90,7 @@ class TrainingConfig:
 
         # TODO also enable to continue training for a given epoch. this is for huge datasets that are only trained on one epoch
         if self.checkpoint_path:
-            checkpoint = torch.load(self.checkpoint_path)
+            checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
             self.model.load_state_dict(checkpoint['model_state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             self.batch_to_continue = checkpoint['batch']
