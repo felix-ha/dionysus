@@ -51,11 +51,6 @@ class TrainingConfig:
 
 
     def __post_init__(self):
-        if self.optimizer == "SGD":
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
-        elif self.optimizer == "AdamW":
-            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
-
         if self.save_model:
             current_time = datetime.datetime.now()
             timestamp = current_time.strftime("%Y%m%d_%H%M%S")
@@ -88,13 +83,28 @@ class TrainingConfig:
         else:
             logging.info(f"device {self.device} is not available, using cpu instead")
 
+
         # TODO also enable to continue training for a given epoch. this is for huge datasets that are only trained on one epoch
         if self.checkpoint_path:
             checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
             self.model.load_state_dict(checkpoint['model_state_dict'])
+            self.model.to(self.device)
+
+            if self.optimizer == "SGD":
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+            elif self.optimizer == "AdamW":
+                self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
+
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             self.batch_to_continue = checkpoint['batch']
             logging.info(f'continuing training at batch {self.batch_to_continue}')
+        else:
+            self.model.to(self.device)
+            if self.optimizer == "SGD":
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+            elif self.optimizer == "AdamW":
+                self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
+
 
     def loss(self, x, y):
         y_hat = self.model(x)
@@ -137,7 +147,6 @@ def _setup_results(config):
 
 def train(config: TrainingConfig):
     results = _setup_results(config)
-    config.model.to(config.device)
     time_training = 0
     logging.info("starting training")
     for epoch in tqdm(

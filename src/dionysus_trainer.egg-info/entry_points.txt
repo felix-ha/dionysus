@@ -1,0 +1,2 @@
+[console_scripts]
+dionysus = dionysus.__main__:main
