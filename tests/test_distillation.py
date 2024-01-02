@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from src.dionysus.loss import DistillationLoss
+from dionysus.loss import DistillationLoss
 
 
 class Teacher:

@@ -10,7 +10,6 @@ RUN pip install -r requirements-dev.txt
 
 COPY . . 
 
-ENV PYTHONPATH=".:src/"
 RUN pytest
 
 RUN python -m pip install -e .

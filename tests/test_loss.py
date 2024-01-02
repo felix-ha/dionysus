@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import src.dionysus.loss as loss
+import dionysus.loss as loss
 
 
 def eps():

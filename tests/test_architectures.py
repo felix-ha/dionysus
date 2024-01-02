@@ -1,8 +1,7 @@
 import unittest
-import pytest
 import torch
 import torch.nn.functional as F
-from src.dionysus.architectures import LeNet5, AlexNet, VGGNet
+from dionysus.architectures import LeNet5, AlexNet, VGGNet
 
 
 class Test(unittest.TestCase):
