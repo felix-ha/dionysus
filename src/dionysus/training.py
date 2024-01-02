@@ -20,9 +20,9 @@ from dionysus.utils import (
     save_checkpoint_batch,
     time_pipeline,
 )
-from . import constants
-from . import utils
-from . import loss
+from dionysus import constants
+from dionysus import utils
+from dionysus import loss
 
 
 @dataclass
@@ -48,6 +48,7 @@ class TrainingConfig:
     checkpoint_step_batch: int = None  # save every checkpoint_step_batch batch
     checkpoint_path: str = None #  to continue training 
     batch_to_continue: int = None # batch to continue training 
+    results: dict = None
 
 
     def __post_init__(self):
@@ -97,6 +98,7 @@ class TrainingConfig:
 
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             self.batch_to_continue = checkpoint['batch']
+            self.results = checkpoint['results']
             logging.info(f'continuing training at batch {self.batch_to_continue}')
         else:
             self.model.to(self.device)
@@ -128,6 +130,8 @@ class DistillConfig(TrainingConfig):
 
 
 def _setup_results(config):
+    if config.results:
+        return config.results
     to_track = ["epoch", "epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
