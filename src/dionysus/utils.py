@@ -81,7 +81,7 @@ def save_checkpoint(epoch, config, results, validation_result):
     # TODO move name of keys to constants
     torch.save(
         {
-            "epoch": epoch,
+            "epoch": results['epoch'][-1],
             "batch": 1,
             "model_state_dict": config.model.state_dict(),
             "optimizer_state_dict": config.optimizer.state_dict(),

@@ -1,5 +1,6 @@
 import unittest
 import os
+from pathlib import Path
 import tempfile
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.datasets import make_classification
@@ -88,9 +89,7 @@ class Test(unittest.TestCase):
                 subdirs[1]
             ), "validation metrics plot was not created"
 
-            #assert subdirs[2].endswith(
-            #    "ffw_moon/last" # TODO fix, runs not on windows because of forward slash
-            #), f"results last directory: {subdirs[2]} was no created"
+            assert Path(subdirs[2]).is_dir(), f"results last directory: {subdirs[2]} was no created"
             assert "model.pt" in os.listdir(subdirs[2]), "model.pt was not created"
 
             # Test Inference
@@ -128,4 +127,25 @@ class Test(unittest.TestCase):
 
             # TODO add asserts for distiller
 
-            # TODO test continue training
+            train_config = TrainingConfig(
+                model=model,
+                epochs=3,
+                loss_func=loss_func,
+                training_loader=training_loader,
+                validation_loader=validation_loader,
+                save_model=True,
+                classification_metrics=True,
+                class_names=["A", "B", "C"],
+                tar_result=True,
+                save_path=save_path,
+                model_name="ffw_moon",
+                progress_bar=False,
+                checkpoint_step=2,
+                checkpoint_path = Path(subdirs[2]) / "model.pt"
+            )
+            train(train_config)
+
+            training_result_dict = torch.load(train_config.checkpoint_path)
+            results_pd = training_result_dict["results"]
+            assert results_pd.shape[0] == 6
+            assert results_pd.loc[5, "epoch"] == 6

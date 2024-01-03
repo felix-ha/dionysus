@@ -34,6 +34,7 @@ class TrainingConfig:
     lr: float = 0.001
     optimizer: str = "SGD"
     epochs: int = 2
+    epoch_to_continue: int = 0
     device: str = "cpu"
     save_model: bool = False
     force_write_logs: bool = False
@@ -97,8 +98,10 @@ class TrainingConfig:
                 self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.epoch_to_continue = checkpoint['epoch']
             self.batch_to_continue = checkpoint['batch']
             self.results = checkpoint['results']
+            logging.info(f'continuing training at epoch {self.epoch_to_continue}')
             logging.info(f'continuing training at batch {self.batch_to_continue}')
         else:
             self.model.to(self.device)
@@ -130,8 +133,8 @@ class DistillConfig(TrainingConfig):
 
 
 def _setup_results(config):
-    if config.results:
-        return config.results
+    if config.results is not None:
+        return config.results.to_dict(orient="list")
     to_track = ["epoch", "epoch_time", "training_loss"]
     if config.validation_loader is not None:
         to_track.append("validation_loss")
@@ -154,7 +157,7 @@ def train(config: TrainingConfig):
     time_training = 0
     logging.info("starting training")
     for epoch in tqdm(
-        range(config.epochs), desc="epoch", disable=not config.progress_bar
+        range(config.epoch_to_continue, config.epoch_to_continue + config.epochs), desc="epoch", disable=not config.progress_bar
     ):
         config.model = config.model.train()
         epoch_time, _ = run_epoch(config, results, epoch, prefix="training")
